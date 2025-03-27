@@ -10,10 +10,10 @@ In below image you will see an conceptual overview. This notebook is the highlig
 #### <mark>**Risks and caveats:**</mark>
 
 **Solution impact**
-- Need to deduplicate dimensional data - as metadata may change over time (or consider slowly changing dimensions instead).
-- Semantic model definition may change through updates, which may break your data extraction notebook.
-- Impact on capacity through direct query on Admin & Monitoring artifacts
+- Need to deduplicate dimensional data - as metadata may change over time (or consider slowly changing dimensions instead). This notebook does not deduplicate the data in the destination lakehouse. 
+- Semantic model definition of the Admin Monitoring Semantic Model may change through updates, which may break this data extraction notebook.
+- Impact on capacity through direct query on Admin & Monitoring artifacts. 
 
 **Permissions & security risks**
-- Admin & monitoring artifacts are available to a limited group - for a reason
+- Admin & monitoring artifacts are available to a limited group - for a reason.
 - Having the data in a lakehouse, makes you responsible to manage retention and security!
