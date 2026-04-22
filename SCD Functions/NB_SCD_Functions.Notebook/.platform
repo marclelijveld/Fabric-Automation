@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "NB_SCD_Functions",
+    "description": "User Data Functions for Slowly Changing Dimensions (SCD Types 0-4) in a Microsoft Fabric Lakehouse"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+}
