@@ -371,7 +371,7 @@ def apply_scd_type2(
     #   • Updated records    – key existed but its current row was just expired.
     current_keys_df = (
         target_dt.toDF()
-        .filter(F.col(is_current_column) == True)
+        .filter(F.col(is_current_column))
         .select(key_columns)
     )
 
@@ -651,6 +651,8 @@ sample_data_updated = [
     ("C004", "Diana",  "Paris",   "France",       "Gold"),
 ]
 
+# `spark` is the pre-defined SparkSession available in all Fabric / Synapse PySpark notebooks.
+# If running outside Fabric, replace with: spark = _get_spark()
 source_initial = spark.createDataFrame(sample_data_initial, schema=sample_schema)
 source_updated = spark.createDataFrame(sample_data_updated, schema=sample_schema)
 
