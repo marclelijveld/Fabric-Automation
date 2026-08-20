@@ -15,9 +15,36 @@ udf = fn.UserDataFunctions()
 _ABBREVIATION_ALLOWLIST = {"id", "kpi", "ytd", "mtd", "qtd", "ly", "py", "sply", "usd", "eur", "gbp"}
 _TECHNICAL_PREFIXES = ("dim_", "fact_", "tbl_", "col_", "vw_", "tmp_", "aux_", "stg_", "_")
 
+# Placeholder strings that authoring tools (Power BI Desktop, TE, etc.) prefill
+# into description fields. These should be treated as empty for scoring.
+_PLACEHOLDER_DESCRIPTIONS = {
+    "enter a description",
+    "enter description",
+    "add a description",
+    "add description",
+    "description",
+    "type a description",
+    "type description",
+    "no description",
+    "n/a",
+    "na",
+    "tbd",
+    "todo",
+    "to do",
+}
+
 
 def _is_non_empty(value: Any) -> bool:
-    return isinstance(value, str) and value.strip() != ""
+    if not isinstance(value, str):
+        return False
+    stripped = value.strip()
+    if stripped == "":
+        return False
+    # Treat authoring-tool placeholders (e.g. "Enter a description") as empty.
+    normalized = stripped.lower().rstrip(".!?")
+    if normalized in _PLACEHOLDER_DESCRIPTIONS:
+        return False
+    return True
 
 
 def _pct(part: int, whole: int) -> float:
