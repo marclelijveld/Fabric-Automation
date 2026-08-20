@@ -122,6 +122,7 @@ By saving the information to the lakehouse, the following information must at le
 | SemanticModelId | text | The guid / id of the Semantic Model that was analyzed |
 | DateTime | DateTime | The moment the score for the semantic model was given |
 | Category | text | the category name in which a score is given, matching the categories described in the functional requirements |
+| Test | text | the test performed, representing the name of the individual item measured in the given category |
 | Score | Integer | The score that was given for the Semantic Model in the category analyzed | 
 | Rationale | text | Description or rationale generated that explains the score |
 
