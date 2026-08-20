@@ -12,7 +12,6 @@ udf = fn.UserDataFunctions()
 # Internal helpers (not exposed as UDF endpoints)
 # ---------------------------------------------------------------------------
 
-_ABBREVIATION_ALLOWLIST = {"id", "kpi", "ytd", "mtd", "qtd", "ly", "py", "sply", "usd", "eur", "gbp"}
 _TECHNICAL_PREFIXES = ("dim_", "fact_", "tbl_", "col_", "vw_", "tmp_", "aux_", "stg_", "_")
 
 # Placeholder strings that authoring tools (Power BI Desktop, TE, etc.) prefill
@@ -59,8 +58,16 @@ def _points_from_pct(pct: float, max_points: int) -> int:
 
 
 def _is_business_friendly(name: str) -> bool:
-    """Heuristic: reject technical prefixes, snake_case, ALLCAPS >4 chars,
-    single-letter, and unknown short abbreviations."""
+    """Strict business-friendly heuristic.
+
+    Rejects:
+    - underscores (snake_case),
+    - camelCase and PascalCase (any lowercase-then-uppercase transition inside a token),
+    - abbreviations (any ALL-CAPS token of 2+ chars such as ``KPI``, ``YTD``, ``ID``),
+    - single-letter tokens,
+    - technical prefixes (``dim_``, ``fact_``, ``tbl_``, ...).
+    Accepts natural, space-separated titles like ``Sales Amount`` or ``Customer Name``.
+    """
     if not _is_non_empty(name):
         return False
     n = name.strip()
@@ -72,13 +79,15 @@ def _is_business_friendly(name: str) -> bool:
         return False
     if len(n) == 1:
         return False
-    # ALLCAPS acronym-like tokens longer than 4 chars are unfriendly (short accepted acronyms OK).
-    tokens = re.findall(r"[A-Za-z]+", n)
-    for t in tokens:
-        if t.isupper() and len(t) > 4:
+    # camelCase / PascalCase: lowercase letter immediately followed by uppercase.
+    if re.search(r"[a-z][A-Z]", n):
+        return False
+    # Any all-uppercase word token counts as an abbreviation.
+    for token in re.findall(r"[A-Za-z]+", n):
+        if len(token) == 1:
+            # Single letter tokens like "Q" in "Sales Q1" are abbreviations.
             return False
-        if t.isupper() and len(t) <= 4 and t.lower() not in _ABBREVIATION_ALLOWLIST and len(tokens) == 1:
-            # A single ALLCAPS short token that isn't a known acronym.
+        if token.isupper():
             return False
     return True
 
@@ -92,10 +101,11 @@ _TECHNICAL_TABLE_PATTERNS = [
     re.compile(r"^(dim|fact|tbl|vw|stg|tmp|aux)[_\s]", re.IGNORECASE),
 ]
 
-_NUMERIC_DATA_TYPES = {"int64", "integer", "double", "decimal", "decimalnumber", "int", "currency"}
-
-_KEY_ALLOWED_SUMMARIZATIONS = {"none", "count", "distinctcount"}
-_NON_DEFAULT = lambda v: isinstance(v, str) and v.strip().lower() not in {"", "default"}
+_NUMERIC_DATA_TYPES = {
+    "int64", "integer", "int", "wholenumber", "whole number",
+    "double", "decimal", "decimalnumber", "decimal number", "currency",
+    "fixeddecimalnumber", "fixed decimal number",
+}
 
 
 def _is_technical_table_name(name: str) -> bool:
@@ -471,62 +481,70 @@ def score_technical_tables_hidden(tables: list, maxPoints: int) -> dict:
 
 @udf.function()
 def score_auto_summarization(columns: list, maxPoints: int) -> dict:
-    """Score whether every column has a sensible SummarizeBy configuration.
+    """Score auto-summarization on numeric columns.
 
-    Rules (see docs/scoring-methodology.md):
-    - Key columns must have SummarizeBy in {None, Count, DistinctCount};
-      Sum/Average/Min/Max on a key is treated as misconfigured.
-    - Numeric non-key columns must have SummarizeBy explicitly set (not Default).
-    - Non-numeric non-key columns pass when SummarizeBy is None, Count or Default
-      (Default on strings has no functional effect).
+    Considers only columns with a numeric data type (Whole Number = Int64 /
+    Integer, Decimal Number = Double / Decimal / DecimalNumber / Currency).
 
-    Denominator is ALL columns (row-number system columns excluded).
+    A numeric column passes when:
+    - It lives in a table flagged as a date table (``inDateTable == True``) AND
+      ``SummarizeBy == "None"`` (summing quarters, day numbers, etc. is
+      nonsensical), OR
+    - It lives in any other table AND ``SummarizeBy`` is explicitly set (i.e.
+      not ``Default`` and not empty).
+
+    See ``docs/scoring-methodology.md`` for the full rule set.
     """
     cols = columns or []
-    considered = []
-    misconfigured = []
+    numeric = []
     for c in cols:
         name = c.get("name", "")
-        # Skip row-number / system-generated columns.
-        if name and (name.startswith("RowNumber-") or name == "RowNumber"):
+        if not name or name.startswith("RowNumber"):
             continue
-        considered.append(c)
+        dtype = str(c.get("dataType") or "").strip().lower()
+        if dtype in _NUMERIC_DATA_TYPES:
+            numeric.append(c)
 
-    total = len(considered)
+    total = len(numeric)
     ok = 0
-    for c in considered:
+    misconfigured = []
+    for c in numeric:
         summarize_by = str(c.get("summarizeBy") or "").strip()
         summarize_norm = summarize_by.lower()
-        data_type = str(c.get("dataType") or "").strip().lower()
-        is_key = bool(c.get("isKey", False))
-        is_numeric = data_type in _NUMERIC_DATA_TYPES
+        in_date_table = bool(c.get("inDateTable", False))
+        name = c.get("name", "")
+        table = c.get("table", "")
 
-        passed = False
-        if is_key:
-            passed = summarize_norm in _KEY_ALLOWED_SUMMARIZATIONS
-        elif is_numeric:
-            passed = summarize_norm not in {"", "default"}
+        if in_date_table:
+            passed = summarize_norm == "none"
+            if not passed:
+                misconfigured.append(
+                    f"{table}[{name}] (date table, SummarizeBy={summarize_by or 'Default'} - should be None)"
+                )
         else:
-            # Non-numeric, non-key: default/none/count are all acceptable
-            passed = summarize_norm in {"", "default", "none", "count", "distinctcount"}
+            passed = summarize_norm not in {"", "default"}
+            if not passed:
+                misconfigured.append(
+                    f"{table}[{name}] (SummarizeBy={summarize_by or 'Default'} - should be explicitly set)"
+                )
 
         if passed:
             ok += 1
-        else:
-            misconfigured.append(f"{c.get('table', '')}[{name}] (SummarizeBy={summarize_by or 'Default'}, key={is_key}, type={data_type})")
 
     coverage = _pct(ok, total)
     score = _points_from_pct(coverage, maxPoints)
 
     if total == 0:
         rationale = (
-            f"Auto summarization: no columns available to evaluate; awarded 0/{maxPoints} points."
+            f"Auto summarization: no numeric columns detected in the model; awarded "
+            f"{maxPoints}/{maxPoints} points by convention."
         )
-        score = 0
+        score = int(maxPoints)
+        coverage = 100.0
     else:
         rationale = (
-            f"Auto summarization: {ok}/{total} columns have a sensible SummarizeBy setting "
-            f"({coverage}%). Awarded {score}/{maxPoints} points."
+            f"Auto summarization: {ok}/{total} numeric columns have a sensible "
+            f"SummarizeBy setting ({coverage}%). Awarded {score}/{maxPoints} points."
         )
         if misconfigured:
             rationale += f" Examples of issues: {'; '.join(misconfigured[:5])}."

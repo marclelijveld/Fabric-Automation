@@ -201,11 +201,14 @@ print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(relationships
 
 # CELL ********************
 
-# Detect whether the model has a table properly flagged as a Date table via TOM.
+# Detect date table(s) via TOM.
 # A table qualifies when it has DataCategory == 'Time' AND at least one column
 # marked IsKey with a DateTime data type (Power BI 'Mark as date table' rule).
+# We also collect the set of ALL date-table names so we can flag their columns
+# for the auto-summarization test (date columns must have SummarizeBy=None).
 date_table_flagged = False
 date_table_name = None
+date_table_names: set = set()
 with connect_semantic_model(
     dataset=semantic_model_id, workspace=workspace_id, readonly=True
 ) as tom:
@@ -216,6 +219,8 @@ with connect_semantic_model(
             data_cat = None
         if str(data_cat or "").lower() != "time":
             continue
+        # Any Time-categorised table gets its columns treated as date-table columns.
+        date_table_names.add(t.Name)
         for col in t.Columns:
             try:
                 is_key = bool(getattr(col, "IsKey", False))
@@ -223,16 +228,20 @@ with connect_semantic_model(
             except Exception:
                 is_key, dtype = False, ""
             if is_key and "date" in dtype:
-                date_table_flagged = True
-                date_table_name = t.Name
-                break
-        if date_table_flagged:
-            break
+                if not date_table_flagged:
+                    date_table_flagged = True
+                    date_table_name = t.Name
 
 print(
     f"Date table flagged: {date_table_flagged}"
     + (f" (table '{date_table_name}')" if date_table_name else "")
 )
+print(f"Date/time tables detected: {sorted(date_table_names) if date_table_names else 'none'}")
+
+# Attach the in-date-table flag onto each column so the UDF can apply the
+# correct SummarizeBy rule per column.
+for c in columns:
+    c["inDateTable"] = c.get("table", "") in date_table_names
 
 # METADATA ********************
 

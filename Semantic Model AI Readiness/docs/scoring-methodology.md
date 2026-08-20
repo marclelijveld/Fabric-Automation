@@ -38,11 +38,16 @@ documents the implementation choices behind those numbers.
 ### Business-friendly name heuristic
 A name is considered friendly when **all** of the following hold:
 - Does not start with a technical prefix: `dim_`, `fact_`, `tbl_`, `col_`, `vw_`, `tmp_`, `aux_`, `stg_`, or `_`.
-- Contains no underscore (`_`).
+- Contains no underscore — snake_case is not allowed.
+- Contains no `[a-z][A-Z]` transition — camelCase and PascalCase are not allowed.
+- Contains no ALL-CAPS word token of length ≥ 2 — abbreviations such as `KPI`,
+  `YTD`, `ID` are rejected.
+- Contains no single-letter word token — e.g. `Sales Q1` is rejected because
+  of the `Q` token.
 - Length > 1 character.
-- If the entire name is a single ALLCAPS token of ≤4 characters, it must be in
-  the allow-list of well-known acronyms (`id`, `kpi`, `ytd`, `mtd`, `qtd`, `ly`,
-  `py`, `sply`, `usd`, `eur`, `gbp`). Longer ALLCAPS tokens (>4 chars) always fail.
+
+Multi-word names must be written in natural language with spaces between words
+(e.g. `Sales Amount`, `Customer Name`).
 
 ### Synonym detection
 Synonyms are gathered from the model's linguistic metadata (Q&A) and from
@@ -102,16 +107,19 @@ Score = `hidden_technical / total_technical * 4`. When no technical tables are
 detected, the full 4 points are awarded.
 
 ### Auto summarization (`SummarizeBy`)
-Denominator is **all** columns (row-number system columns are excluded).
+Only **numeric** columns are considered — `Whole Number` (Int64/Integer),
+`Decimal Number` (Double/Decimal/DecimalNumber/FixedDecimalNumber) and
+`Currency`. Non-numeric columns and TOM row-number system columns are excluded
+from the denominator.
 
-A column passes when:
-- **Key column** (numeric or otherwise) with `SummarizeBy` ∈ `{None, Count, DistinctCount}`.
-  `Sum`, `Average`, `Min`, `Max` on a key are treated as misconfigured — keys
-  should never be summed.
-- **Numeric non-key column** with `SummarizeBy` explicitly set (not `Default`).
-  Numeric types considered: `Int64`, `Integer`, `Double`, `Decimal`,
-  `DecimalNumber`, `Currency`.
-- **Non-numeric non-key column** with `SummarizeBy` ∈ `{Default, None, Count, DistinctCount}`.
-  `Default` on strings has no functional effect, so it is accepted.
+A numeric column passes when:
+- It lives in a **date/time table** (its table has `DataCategory == "Time"`)
+  AND `SummarizeBy == "None"`. Summing quarters, day numbers, or year values
+  is nonsensical.
+- OR it lives in any **other** table AND `SummarizeBy` is explicitly set (i.e.
+  not `Default` and not empty). Explicit choices like `Sum`, `Average`, `Min`,
+  `Max`, `None`, `Count`, `DistinctCount` all pass — the AI Readiness check is
+  that the modeler made a deliberate choice, not what that choice was.
 
-Score = `ok / total * 4`.
+Score = `ok / total * 4`. When no numeric columns exist at all, the full 4
+points are awarded by convention.

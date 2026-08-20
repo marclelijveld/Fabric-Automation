@@ -101,92 +101,54 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 
 # CELL ********************
 
-# Fetch model metadata via Semantic Link.
-tables_df = fabric.list_tables(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-    extended=True,
-    additional_xmla_properties=["Description"],
-)
+# Fetch tables, columns and measures with descriptions & IsHidden directly from
+# TOM. The Semantic Link ``list_*`` helpers can return stale or non-authoritative
+# description values (e.g. defaults from the model tables view), while TOM
+# exposes the exact string stored in the semantic model definition.
+tables = []
+columns = []
+measures = []
 
-columns_df = fabric.list_columns(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-    extended=True,
-    additional_xmla_properties=["Description", "IsHidden", "IsKey"],
-)
+with connect_semantic_model(
+    dataset=semantic_model_id, workspace=workspace_id, readonly=True
+) as tom:
+    for t in tom.model.Tables:
+        t_name = t.Name
+        t_hidden = bool(getattr(t, "IsHidden", False))
+        t_desc = getattr(t, "Description", "") or ""
+        tables.append({
+            "name": str(t_name),
+            "description": str(t_desc),
+            "hidden": t_hidden,
+        })
+        for c in t.Columns:
+            c_name = c.Name
+            # Skip TOM's internal RowNumber columns.
+            if not c_name or str(c_name).startswith("RowNumber"):
+                continue
+            c_hidden = bool(getattr(c, "IsHidden", False))
+            c_desc = getattr(c, "Description", "") or ""
+            c_is_key = bool(getattr(c, "IsKey", False))
+            c_type = str(getattr(c, "DataType", "") or "")
+            columns.append({
+                "name": f"{t_name}[{c_name}]",
+                "short_name": str(c_name),
+                "description": str(c_desc),
+                "hidden": c_hidden or t_hidden,
+                "is_key": c_is_key,
+                "type": c_type,
+            })
+        for m in t.Measures:
+            m_hidden = bool(getattr(m, "IsHidden", False))
+            m_desc = getattr(m, "Description", "") or ""
+            measures.append({
+                "name": str(m.Name),
+                "table": str(t_name),
+                "description": str(m_desc),
+                "hidden": m_hidden,
+            })
 
-measures_df = fabric.list_measures(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-    additional_xmla_properties=["Description", "IsHidden"],
-)
-
-
-def _col(df, *candidates, default=None):
-    """Return the first column name in df matching any candidate, else default."""
-    for c in candidates:
-        if c in df.columns:
-            return c
-    return default
-
-
-def _bool(v) -> bool:
-    if isinstance(v, bool):
-        return v
-    if v is None:
-        return False
-    return str(v).strip().lower() in {"true", "1", "yes"}
-
-
-# Normalize tables.
-t_name = _col(tables_df, "Name", "Table Name")
-t_desc = _col(tables_df, "Description")
-t_hidden = _col(tables_df, "IsHidden", "Is Hidden", "Hidden")
-tables = [
-    {
-        "name": row[t_name],
-        "description": row[t_desc] if t_desc else "",
-        "hidden": _bool(row[t_hidden]) if t_hidden else False,
-    }
-    for _, row in tables_df.iterrows()
-]
-
-# Normalize columns.
-c_table = _col(columns_df, "Table Name", "Table", "TableName")
-c_name = _col(columns_df, "Column Name", "Name", "ColumnName")
-c_desc = _col(columns_df, "Description")
-c_hidden = _col(columns_df, "IsHidden", "Is Hidden", "Hidden")
-c_key = _col(columns_df, "IsKey", "Is Key", "Key")
-c_type = _col(columns_df, "Type", "Column Type")
-columns = [
-    {
-        "name": f"{row[c_table]}[{row[c_name]}]",
-        "short_name": row[c_name],
-        "description": row[c_desc] if c_desc else "",
-        "hidden": _bool(row[c_hidden]) if c_hidden else False,
-        "is_key": _bool(row[c_key]) if c_key else False,
-        "type": row[c_type] if c_type else "",
-    }
-    for _, row in columns_df.iterrows()
-]
-
-# Normalize measures.
-m_table = _col(measures_df, "Table Name", "Table")
-m_name = _col(measures_df, "Measure Name", "Name")
-m_desc = _col(measures_df, "Description")
-m_hidden = _col(measures_df, "IsHidden", "Is Hidden", "Hidden")
-measures = [
-    {
-        "name": row[m_name],
-        "table": row[m_table] if m_table else "",
-        "description": row[m_desc] if m_desc else "",
-        "hidden": _bool(row[m_hidden]) if m_hidden else False,
-    }
-    for _, row in measures_df.iterrows()
-]
-
-print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} measures.")
+print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} measures from TOM.")
 
 # METADATA ********************
 
