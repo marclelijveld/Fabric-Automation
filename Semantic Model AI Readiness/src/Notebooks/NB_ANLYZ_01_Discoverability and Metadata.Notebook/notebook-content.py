@@ -18,10 +18,8 @@
 # MARKDOWN ********************
 
 # # NB_ANLYZ_01 - Discoverability & Metadata
-#
 # Measures the **Discoverability & metadata** category (max 20 pts) of a Power BI
 # semantic model's AI Readiness score.
-#
 # Tests performed:
 # | Test | Points |
 # |------|-------:|
@@ -30,7 +28,6 @@
 # | Measure descriptions | 5 |
 # | Business-friendly names | 4 |
 # | Synonyms defined | 4 |
-#
 # Reusable scoring logic lives in the `UDF_READ_SemanticModels` user data
 # function. This notebook orchestrates metadata retrieval, calls the UDF, prints
 # results, and appends one row per test to the `AiReadiness.Scores` Delta table
@@ -38,9 +35,25 @@
 
 # CELL ********************
 
+# Imports & configuration
+%pip install semantic-link-labs
+import sempy.fabric as fabric
+import sempy_labs as labs
+from sempy_labs.tom import connect_semantic_model
+import notebookutils
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# PARAMETERS CELL ********************
+
 # Parameters - override these when running the notebook via the pipeline / scheduler.
-workspace_id: str = ""            # Workspace containing the semantic model to analyze
-semantic_model_id: str = ""       # Semantic model id (guid)
+workspace_id: str = "733afa10-8965-4440-979b-a36a78750301"            # Workspace containing the semantic model to analyze
+semantic_model_id: str = "f0875e75-caba-40c9-9a6e-9aa035d7bb8e"       # Semantic model id (guid)
 semantic_model_name: str = ""     # Optional: friendly name; used if id is not provided
 
 # UDF connection info
@@ -51,17 +64,10 @@ udf_item_name: str = "UDF_READ_SemanticModels"
 
 # META {
 # META   "language": "python",
-# META   "language_group": "synapse_pyspark",
-# META   "parameters": true
+# META   "language_group": "synapse_pyspark"
 # META }
 
 # CELL ********************
-
-# Imports & configuration
-import sempy.fabric as fabric
-import sempy_labs as labs
-from sempy_labs.tom import connect_semantic_model
-import notebookutils
 
 CATEGORY = "Discoverability & metadata"
 
@@ -305,31 +311,76 @@ synonym_items = (
 # CELL ********************
 
 # Call the UDF for each test and collect results.
+# NOTE: The previous implementation passed full pandas-like structures into the
+# UDF, which caused deep nested conversions on the JVM side and triggered a
+# RecursionError in py4j. We now convert each input collection into a minimal
+# list-of-dicts made of only primitive types (str, bool, int) so that the JVM
+# marshaller can handle it safely.
+
+from copy import deepcopy
+
+
+def _materialize_items(items):
+    """Return a deep-copied list with only basic Python types.
+
+    notebookutils.udf uses py4j to marshal Python objects into Java. Very
+    complex/nested objects (e.g., pandas Series, custom classes) can cause
+    recursive conversions and hit Python's recursion limit. This helper
+    defensively converts each element into a plain dict of primitives.
+    """
+
+    materialized = []
+    for it in items:
+        # Ensure a plain dict and deep-copy to break any references
+        d = dict(it)
+        materialized.append(
+            {
+                "name": str(d.get("name", "")),
+                # Optional fields depending on the scoring function
+                "description": str(d.get("description", "")) if "description" in d else None,
+                "hidden": bool(d.get("hidden", False)) if "hidden" in d else None,
+                "synonyms": [str(s) for s in d.get("synonyms", [])] if "synonyms" in d else None,
+            }
+        )
+
+    return materialized
+
+
+tables_for_desc_m = _materialize_items(tables_for_desc)
+columns_for_desc_m = _materialize_items(columns_for_desc)
+measures_for_desc_m = _materialize_items(measures_for_desc)
+
+friendly_items_m = _materialize_items(friendly_items)
+synonym_items_m = _materialize_items(synonym_items)
+
+
+# Call the UDFs with the simplified payloads.
+
 tests = [
     (
         "Table descriptions",
         3,
-        udf_client.score_description_coverage(items=tables_for_desc, maxPoints=3),
+        udf_client.score_description_coverage(items=tables_for_desc_m, maxPoints=3),
     ),
     (
         "Column descriptions",
         4,
-        udf_client.score_description_coverage(items=columns_for_desc, maxPoints=4),
+        udf_client.score_description_coverage(items=columns_for_desc_m, maxPoints=4),
     ),
     (
         "Measure descriptions",
         5,
-        udf_client.score_description_coverage(items=measures_for_desc, maxPoints=5),
+        udf_client.score_description_coverage(items=measures_for_desc_m, maxPoints=5),
     ),
     (
         "Business-friendly names",
         4,
-        udf_client.score_business_friendly_names(items=friendly_items, maxPoints=4),
+        udf_client.score_business_friendly_names(items=friendly_items_m, maxPoints=4),
     ),
     (
         "Synonyms defined",
         4,
-        udf_client.score_synonym_coverage(items=synonym_items, maxPoints=4),
+        udf_client.score_synonym_coverage(items=synonym_items_m, maxPoints=4),
     ),
 ]
 

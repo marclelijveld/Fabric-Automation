@@ -1,0 +1,32 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "1927d946-861b-b072-44c1-a6722cd2a341",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "workspace_id": {
+              "value": "733afa10-8965-4440-979b-a36a78750301",
+              "type": "string"
+            },
+            "semantic_model_id": {
+              "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
+              "type": "string"
+            }
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "NB_ANLYZ_01_Discoverability and metadata",
+        "dependsOn": []
+      }
+    ]
+  }
+}

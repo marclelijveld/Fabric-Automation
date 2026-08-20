@@ -4,8 +4,8 @@
   "connectedDataSources": [],
   "functions": [
     {
-      "name": "score_description_coverage",
-      "description": "Score description coverage for a list of model objects (tables, columns, or measures).",
+      "name": "build_score_record",
+      "description": "Build a Lakehouse row for the AiReadiness.Scores table.",
       "isPublicEndpointEnabled": true
     },
     {
@@ -14,13 +14,13 @@
       "isPublicEndpointEnabled": true
     },
     {
-      "name": "score_synonym_coverage",
-      "description": "Score how many non-hidden objects have at least one synonym defined.",
+      "name": "score_description_coverage",
+      "description": "Score description coverage for a list of model objects (tables, columns, or measures).",
       "isPublicEndpointEnabled": true
     },
     {
-      "name": "build_score_record",
-      "description": "Build a Lakehouse row for the AiReadiness.Scores table.",
+      "name": "score_synonym_coverage",
+      "description": "Score how many non-hidden objects have at least one synonym defined.",
       "isPublicEndpointEnabled": true
     }
   ],

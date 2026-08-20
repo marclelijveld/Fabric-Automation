@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "PL_ORCHS_RunScoring"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "fb9b7c3b-1090-9724-46f3-2c3a90d2ec1c"
+  }
+}
