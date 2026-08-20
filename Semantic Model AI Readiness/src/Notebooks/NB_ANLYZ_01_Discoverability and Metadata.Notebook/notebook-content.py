@@ -309,27 +309,27 @@ tests = [
     (
         "Table descriptions",
         3,
-        udf_client.score_description_coverage(items=tables_for_desc, max_points=3),
+        udf_client.score_description_coverage(items=tables_for_desc, maxPoints=3),
     ),
     (
         "Column descriptions",
         4,
-        udf_client.score_description_coverage(items=columns_for_desc, max_points=4),
+        udf_client.score_description_coverage(items=columns_for_desc, maxPoints=4),
     ),
     (
         "Measure descriptions",
         5,
-        udf_client.score_description_coverage(items=measures_for_desc, max_points=5),
+        udf_client.score_description_coverage(items=measures_for_desc, maxPoints=5),
     ),
     (
         "Business-friendly names",
         4,
-        udf_client.score_business_friendly_names(items=friendly_items, max_points=4),
+        udf_client.score_business_friendly_names(items=friendly_items, maxPoints=4),
     ),
     (
         "Synonyms defined",
         4,
-        udf_client.score_synonym_coverage(items=synonym_items, max_points=4),
+        udf_client.score_synonym_coverage(items=synonym_items, maxPoints=4),
     ),
 ]
 
@@ -345,8 +345,8 @@ for test_name, max_points, result in tests:
     print(f"  {test_name:<28} {score:>2}/{max_points}  -> {rationale}")
 
     record = udf_client.build_score_record(
-        workspace_id=workspace_id,
-        semantic_model_id=semantic_model_id,
+        workspaceId=workspace_id,
+        semanticModelId=semantic_model_id,
         category=CATEGORY,
         test=test_name,
         score=score,

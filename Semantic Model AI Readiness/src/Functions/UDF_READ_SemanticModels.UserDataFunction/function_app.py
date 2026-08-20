@@ -61,14 +61,14 @@ def _is_business_friendly(name: str) -> bool:
 # ---------------------------------------------------------------------------
 
 @udf.function()
-def score_description_coverage(items: list, max_points: int) -> dict:
+def score_description_coverage(items: list, maxPoints: int) -> dict:
     """Score description coverage for a collection of model objects.
 
     Parameters
     ----------
     items : list of dicts with keys ``name``, ``description`` and optional
         ``hidden`` (bool). Items with ``hidden=True`` are excluded from scoring.
-    max_points : maximum points achievable for this test.
+    maxPoints : maximum points achievable for this test.
 
     Returns
     -------
@@ -80,14 +80,14 @@ def score_description_coverage(items: list, max_points: int) -> dict:
     total = len(visible)
     with_desc = sum(1 for i in visible if _is_non_empty(i.get("description")))
     coverage = _pct(with_desc, total)
-    score = _points_from_pct(coverage, max_points)
+    score = _points_from_pct(coverage, maxPoints)
 
     if total == 0:
-        rationale = f"No visible objects available to evaluate (max {max_points} pts)."
+        rationale = f"No visible objects available to evaluate (max {maxPoints} pts)."
     else:
         rationale = (
             f"{with_desc}/{total} visible objects have a non-empty description "
-            f"({coverage}%). Awarded {score}/{max_points} points."
+            f"({coverage}%). Awarded {score}/{maxPoints} points."
         )
 
     return {
@@ -100,14 +100,14 @@ def score_description_coverage(items: list, max_points: int) -> dict:
 
 
 @udf.function()
-def score_business_friendly_names(items: list, max_points: int) -> dict:
+def score_business_friendly_names(items: list, maxPoints: int) -> dict:
     """Score how many object names look business-friendly.
 
     Parameters
     ----------
     items : list of dicts with keys ``name`` and optional ``hidden`` (bool).
         Hidden items are excluded.
-    max_points : maximum points for this test.
+    maxPoints : maximum points for this test.
     """
     logging.info("score_business_friendly_names called with %d items", len(items) if items else 0)
     visible = [i for i in (items or []) if not i.get("hidden", False)]
@@ -119,14 +119,14 @@ def score_business_friendly_names(items: list, max_points: int) -> dict:
     ][:5]
 
     coverage = _pct(friendly, total)
-    score = _points_from_pct(coverage, max_points)
+    score = _points_from_pct(coverage, maxPoints)
 
     if total == 0:
-        rationale = f"No visible objects available to evaluate (max {max_points} pts)."
+        rationale = f"No visible objects available to evaluate (max {maxPoints} pts)."
     else:
         rationale = (
             f"{friendly}/{total} visible objects use business-friendly names "
-            f"({coverage}%). Awarded {score}/{max_points} points."
+            f"({coverage}%). Awarded {score}/{maxPoints} points."
         )
         if unfriendly_examples:
             rationale += f" Examples of unfriendly names: {', '.join(unfriendly_examples)}."
@@ -141,14 +141,14 @@ def score_business_friendly_names(items: list, max_points: int) -> dict:
 
 
 @udf.function()
-def score_synonym_coverage(items: list, max_points: int) -> dict:
+def score_synonym_coverage(items: list, maxPoints: int) -> dict:
     """Score how many non-hidden objects have at least one synonym defined.
 
     Parameters
     ----------
     items : list of dicts with keys ``name``, ``synonyms`` (list or str),
         and optional ``hidden`` (bool). Hidden items are excluded.
-    max_points : maximum points for this test.
+    maxPoints : maximum points for this test.
     """
     logging.info("score_synonym_coverage called with %d items", len(items) if items else 0)
     visible = [i for i in (items or []) if not i.get("hidden", False)]
@@ -166,14 +166,14 @@ def score_synonym_coverage(items: list, max_points: int) -> dict:
 
     with_syn = sum(1 for i in visible if _has_synonym(i))
     coverage = _pct(with_syn, total)
-    score = _points_from_pct(coverage, max_points)
+    score = _points_from_pct(coverage, maxPoints)
 
     if total == 0:
-        rationale = f"No visible objects available to evaluate (max {max_points} pts)."
+        rationale = f"No visible objects available to evaluate (max {maxPoints} pts)."
     else:
         rationale = (
             f"{with_syn}/{total} visible objects have at least one synonym defined "
-            f"({coverage}%). Awarded {score}/{max_points} points."
+            f"({coverage}%). Awarded {score}/{maxPoints} points."
         )
 
     return {
@@ -187,8 +187,8 @@ def score_synonym_coverage(items: list, max_points: int) -> dict:
 
 @udf.function()
 def build_score_record(
-    workspace_id: str,
-    semantic_model_id: str,
+    workspaceId: str,
+    semanticModelId: str,
     category: str,
     test: str,
     score: int,
@@ -200,8 +200,8 @@ def build_score_record(
     consistent across notebooks that batch multiple test results.
     """
     return {
-        "WorkspaceId": workspace_id,
-        "SemanticModelId": semantic_model_id,
+        "WorkspaceId": workspaceId,
+        "SemanticModelId": semanticModelId,
         "DateTime": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "Category": category,
         "Test": test,
