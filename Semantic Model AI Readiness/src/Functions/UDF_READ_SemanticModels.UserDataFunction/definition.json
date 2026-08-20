@@ -22,6 +22,36 @@
       "name": "score_synonym_coverage",
       "description": "Score how many non-hidden objects have at least one synonym defined.",
       "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_boolean",
+      "description": "All-or-nothing scorer that awards full points when a flag is true.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_ratio",
+      "description": "Generic proportional scorer based on matched/total counts.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_star_schema",
+      "description": "Score star-schema characteristics using relationship-based fact/dimension classification.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_facts_dims_identifiable",
+      "description": "Score whether every table is either a classified fact/dimension or hidden.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_technical_tables_hidden",
+      "description": "Score whether tables that look technical/helper are hidden from consumers.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_auto_summarization",
+      "description": "Score whether every column has a sensible SummarizeBy configuration.",
+      "isPublicEndpointEnabled": true
     }
   ],
   "libraries": {
