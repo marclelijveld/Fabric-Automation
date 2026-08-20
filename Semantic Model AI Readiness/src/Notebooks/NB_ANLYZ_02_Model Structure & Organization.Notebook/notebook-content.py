@@ -62,8 +62,7 @@ udf_item_name: str = "UDF_READ_SemanticModels"
 
 # META {
 # META   "language": "python",
-# META   "language_group": "synapse_pyspark",
-# META   "parameters": true
+# META   "language_group": "synapse_pyspark"
 # META }
 
 # CELL ********************
