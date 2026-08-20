@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "NB_ANLYZ_06_Quality and Trust"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "b6b2a5c5-f146-9e4b-4485-c5dbdf51acfa"
+  }
+}

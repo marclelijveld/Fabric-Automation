@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "NB_ANLYZ_05_Business Semantics and Context"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "db07feca-e9f3-a44a-446c-e7b0745a3e22"
+  }
+}

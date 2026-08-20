@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "NB_ANLYZ_02_Model Structure & Organization"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "1fb31604-2bc6-8549-4d54-6511ffb9e88b"
+  }
+}

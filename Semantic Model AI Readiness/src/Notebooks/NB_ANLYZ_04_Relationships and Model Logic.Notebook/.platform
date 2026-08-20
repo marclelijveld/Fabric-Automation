@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "NB_ANLYZ_04_Relationships and Model Logic"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "211e3ad7-8e3c-be21-46f7-cb1d7107a6ff"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "NB_ANLYZ_03_Measures and Calculations"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "736f34d2-9836-ac1c-4b4d-a1779dd12775"
+  }
+}
