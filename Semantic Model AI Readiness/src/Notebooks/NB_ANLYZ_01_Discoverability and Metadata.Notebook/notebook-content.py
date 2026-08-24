@@ -101,118 +101,63 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 
 # CELL ********************
 
-# Fetch metadata via Semantic Link.
-# Per the docs:
-#   - fabric.list_tables(dataset)                        -> one row per table (Name, Description, Hidden, Data Category)
-#   - fabric.list_tables(dataset, include_columns=True)  -> one row per column with the parent table
-#   - fabric.list_measures(dataset)                      -> one row per measure
-# Note: include_columns cannot be combined with extended/include_partitions.
+# Fetch metadata via Semantic Link, using ONLY the documented functions.
+#   fabric.list_tables(dataset, workspace)                       -> Name, Description, Hidden, Data Category, Type
+#   fabric.list_tables(dataset, workspace, include_columns=True) -> one row per column with the parent table info
+#   fabric.list_measures(dataset, workspace)                     -> Table Name, Measure Name, Measure Description, Measure Hidden, ...
 tables_df = fabric.list_tables(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-)
-tables_with_columns_df = fabric.list_tables(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-    include_columns=True,
-)
+    dataset=semantic_model_id, workspace=workspace_id
+).fillna("")
+tables_columns_df = fabric.list_tables(
+    dataset=semantic_model_id, workspace=workspace_id, include_columns=True
+).fillna("")
 measures_df = fabric.list_measures(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-)
+    dataset=semantic_model_id, workspace=workspace_id
+).fillna("")
 
+print("tables_df columns:         ", list(tables_df.columns))
+print("tables_columns_df columns: ", list(tables_columns_df.columns))
+print("measures_df columns:       ", list(measures_df.columns))
 
-def _col(df, *candidates, default=None):
-    """Return the first column name in df matching any candidate, else default."""
-    for c in candidates:
-        if c in df.columns:
-            return c
-    return default
-
-
-def _bool(v) -> bool:
-    if isinstance(v, bool):
-        return v
-    if v is None:
-        return False
-    return str(v).strip().lower() in {"true", "1", "yes"}
-
-
-def _str(v) -> str:
-    if v is None:
-        return ""
-    try:
-        if v != v:  # pandas NaN is not equal to itself
-            return ""
-    except Exception:
-        pass
-    return str(v)
-
-
-# Diagnostic output so field names are visible in the notebook log.
-print("tables_df columns:              ", list(tables_df.columns))
-print("tables_with_columns_df columns: ", list(tables_with_columns_df.columns))
-print("measures_df columns:            ", list(measures_df.columns))
-
-# Normalize tables.
-t_name = _col(tables_df, "Name", "Table Name")
-t_desc = _col(tables_df, "Description")
-t_hidden = _col(tables_df, "Hidden", "IsHidden", "Is Hidden")
+# Tables
 tables = [
     {
-        "name": _str(row[t_name]),
-        "description": _str(row[t_desc]) if t_desc else "",
-        "hidden": _bool(row[t_hidden]) if t_hidden else False,
+        "name": str(r["Name"]),
+        "description": str(r["Description"]),
+        "hidden": bool(r["Hidden"]),
     }
-    for _, row in tables_df.iterrows()
+    for _, r in tables_df.iterrows()
 ]
 
-# Normalize columns (rows are columns; parent table lives in a table-name field).
-c_table = _col(tables_with_columns_df, "Table Name", "Table", "TableName", "Name")
-c_name = _col(tables_with_columns_df, "Column Name", "ColumnName")
-c_desc = _col(tables_with_columns_df, "Column Description", "Description")
-c_hidden = _col(tables_with_columns_df, "Column Hidden", "Hidden", "IsHidden", "Is Hidden")
-c_key = _col(tables_with_columns_df, "Key", "IsKey", "Is Key")
-c_type = _col(tables_with_columns_df, "Data Type", "DataType", "Type", "Column Type")
+# Columns (from list_tables include_columns=True)
+# Column-side field names are printed above so any mismatch is immediately visible.
+_col_desc = "Column Description" if "Column Description" in tables_columns_df.columns else "Description"
+_col_hidden = "Column Hidden" if "Column Hidden" in tables_columns_df.columns else "Hidden"
 columns = []
-for _, row in tables_with_columns_df.iterrows():
-    col_name = _str(row[c_name]) if c_name else ""
+for _, r in tables_columns_df.iterrows():
+    row = r.to_dict()
+    col_name = str(row.get("Column Name", ""))
     if not col_name or col_name.startswith("RowNumber"):
         continue
-    tbl = _str(row[c_table]) if c_table else ""
     columns.append({
-        "name": f"{tbl}[{col_name}]",
-        "short_name": col_name,
-        "description": _str(row[c_desc]) if c_desc else "",
-        "hidden": _bool(row[c_hidden]) if c_hidden else False,
-        "is_key": _bool(row[c_key]) if c_key else False,
-        "type": _str(row[c_type]) if c_type else "",
+        "name": col_name,
+        "table": str(row.get("Table Name", "")),
+        "description": str(row.get(_col_desc, "")),
+        "hidden": bool(row.get(_col_hidden, False)),
     })
 
-# Normalize measures.
-m_table = _col(measures_df, "Table Name", "Table")
-m_name = _col(measures_df, "Measure Name", "Name")
-m_desc = _col(measures_df, "Description")
-m_hidden = _col(measures_df, "Hidden", "IsHidden", "Is Hidden")
+# Measures (exact column names per Semantic Link docs)
 measures = [
     {
-        "name": _str(row[m_name]),
-        "table": _str(row[m_table]) if m_table else "",
-        "description": _str(row[m_desc]) if m_desc else "",
-        "hidden": _bool(row[m_hidden]) if m_hidden else False,
+        "name": str(r["Measure Name"]),
+        "table": str(r["Table Name"]),
+        "description": str(r["Measure Description"]),
+        "hidden": bool(r["Measure Hidden"]),
     }
-    for _, row in measures_df.iterrows()
+    for _, r in measures_df.iterrows()
 ]
 
 print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} measures.")
-
-# Sanity peek so unexpected description values are obvious in the log.
-print("Sample table descriptions:")
-for t in tables[:5]:
-    print(f"  - {t['name']!r}: description={t['description']!r}, hidden={t['hidden']}")
-print("Sample column descriptions:")
-for c in columns[:5]:
-    print(f"  - {c['name']!r}: description={c['description']!r}, hidden={c['hidden']}, is_key={c['is_key']}")
 
 # METADATA ********************
 
@@ -223,66 +168,56 @@ for c in columns[:5]:
 
 # CELL ********************
 
-# Fetch synonyms via TOM (Semantic Link Labs).
-# Synonyms live inside CultureCollection -> ObjectTranslation entries with
-# TranslatedProperty == 'Caption' for the linguistic culture. We collect any
-# non-empty translation as a "synonym" indicator per object.
-synonym_index = {"tables": {}, "columns": {}, "measures": {}}
+# Collect names of tables/columns/measures that have at least one synonym.
+# Synonyms live in the model's linguistic metadata (Q&A) and object translations.
+# We keep this in a set-based lookup so no synonym field is added to the base
+# tables/columns/measures collections.
+tables_with_syn: set = set()
+columns_with_syn: set = set()          # keys are column names (short form)
+measures_with_syn: set = set()
 
 with connect_semantic_model(
     dataset=semantic_model_id, workspace=workspace_id, readonly=True
 ) as tom:
     for culture in tom.model.Cultures:
-        linguistic = getattr(culture, "LinguisticMetadata", None)
-        # Fallback: also collect object translations as a soft signal.
+        # Object translations (any non-empty translation counts as a synonym signal)
         for tr in culture.ObjectTranslations:
             try:
-                obj = tr.Object
-                value = tr.Value
-                if not value:
+                if not tr.Value:
                     continue
-                obj_type = obj.ObjectType.ToString() if hasattr(obj.ObjectType, "ToString") else str(obj.ObjectType)
-                if obj_type == "Table":
-                    synonym_index["tables"].setdefault(obj.Name, []).append(value)
-                elif obj_type == "Column":
-                    key = f"{obj.Table.Name}[{obj.Name}]"
-                    synonym_index["columns"].setdefault(key, []).append(value)
-                elif obj_type == "Measure":
-                    synonym_index["measures"].setdefault(obj.Name, []).append(value)
+                obj = tr.Object
+                otype = str(obj.ObjectType)
+                if "Table" in otype:
+                    tables_with_syn.add(obj.Name)
+                elif "Column" in otype:
+                    columns_with_syn.add(obj.Name)
+                elif "Measure" in otype:
+                    measures_with_syn.add(obj.Name)
             except Exception:
                 continue
 
-        # Parse linguistic metadata JSON for explicit synonyms if present.
-        if linguistic and getattr(linguistic, "Content", None):
+        # Linguistic metadata JSON (explicit Q&A synonyms)
+        ling = getattr(culture, "LinguisticMetadata", None)
+        content = getattr(ling, "Content", None) if ling else None
+        if content:
             import json
             try:
-                content = json.loads(linguistic.Content)
-                entities = content.get("Entities", {}) or {}
-                for _ent_name, ent in entities.items():
-                    binding = ent.get("Definition", {}).get("Binding", {})
-                    conceptual_entity = binding.get("ConceptualEntity")
-                    conceptual_property = binding.get("ConceptualProperty")
-                    terms = ent.get("Terms", []) or []
-                    term_values = [list(t.keys())[0] for t in terms if isinstance(t, dict) and t]
-                    if not term_values:
+                data = json.loads(content)
+                for _, ent in (data.get("Entities") or {}).items():
+                    binding = (ent.get("Definition") or {}).get("Binding") or {}
+                    ce = binding.get("ConceptualEntity")
+                    cp = binding.get("ConceptualProperty")
+                    if not (ent.get("Terms") or []):
                         continue
-                    if conceptual_entity and not conceptual_property:
-                        synonym_index["tables"].setdefault(conceptual_entity, []).extend(term_values)
-                    elif conceptual_entity and conceptual_property:
-                        key = f"{conceptual_entity}[{conceptual_property}]"
-                        # Could be column or measure - store under both maps; scoring dedupes on lookup.
-                        synonym_index["columns"].setdefault(key, []).extend(term_values)
-                        synonym_index["measures"].setdefault(conceptual_property, []).extend(term_values)
+                    if ce and not cp:
+                        tables_with_syn.add(ce)
+                    elif ce and cp:
+                        columns_with_syn.add(cp)
+                        measures_with_syn.add(cp)
             except Exception:
                 pass
 
-# Attach synonyms onto each item structure.
-for t in tables:
-    t["synonyms"] = synonym_index["tables"].get(t["name"], [])
-for c in columns:
-    c["synonyms"] = synonym_index["columns"].get(c["name"], [])
-for m in measures:
-    m["synonyms"] = synonym_index["measures"].get(m["name"], [])
+print(f"Synonyms found on {len(tables_with_syn)} tables, {len(columns_with_syn)} columns, {len(measures_with_syn)} measures.")
 
 # METADATA ********************
 
@@ -293,38 +228,51 @@ for m in measures:
 
 # CELL ********************
 
-# Build the item collections used by each scoring test.
+# Build the item collections for the 5 tests. Everything is a plain list of
+# dicts of primitives so the UDF (py4j) marshalling stays trivial.
 
-# Table descriptions - visible tables only.
+# Table descriptions - all tables (spec: % of visible tables). The UDF filters hidden.
 tables_for_desc = [
     {"name": t["name"], "description": t["description"], "hidden": t["hidden"]}
     for t in tables
 ]
 
-# Column descriptions - visible, non-key columns (relationship keys typically don't need a description).
+# Column descriptions - all columns (spec: % of relevant columns).
 columns_for_desc = [
-    {"name": c["name"], "description": c["description"], "hidden": c["hidden"] or c["is_key"]}
+    {"name": c["name"], "description": c["description"], "hidden": c["hidden"]}
     for c in columns
 ]
 
-# Measure descriptions - all measures (spec says "% of measures").
+# Measure descriptions - all measures.
 measures_for_desc = [
     {"name": m["name"], "description": m["description"], "hidden": False}
     for m in measures
 ]
 
-# Business-friendly names - union of visible tables, columns (short name), measures.
+# Business-friendly names - union of visible tables, columns, measures.
 friendly_items = (
     [{"name": t["name"], "hidden": t["hidden"]} for t in tables]
-    + [{"name": c["short_name"], "hidden": c["hidden"]} for c in columns]
+    + [{"name": c["name"], "hidden": c["hidden"]} for c in columns]
     + [{"name": m["name"], "hidden": m["hidden"]} for m in measures]
 )
 
-# Synonyms - non-hidden tables, columns, measures.
+# Synonyms - non-hidden tables/columns/measures with a lookup into the synonym sets.
 synonym_items = (
-    [{"name": t["name"], "synonyms": t["synonyms"], "hidden": t["hidden"]} for t in tables]
-    + [{"name": c["name"], "synonyms": c["synonyms"], "hidden": c["hidden"]} for c in columns]
-    + [{"name": m["name"], "synonyms": m["synonyms"], "hidden": m["hidden"]} for m in measures]
+    [
+        {"name": t["name"], "hidden": t["hidden"],
+         "synonyms": ["x"] if t["name"] in tables_with_syn else []}
+        for t in tables
+    ]
+    + [
+        {"name": c["name"], "hidden": c["hidden"],
+         "synonyms": ["x"] if c["name"] in columns_with_syn else []}
+        for c in columns
+    ]
+    + [
+        {"name": m["name"], "hidden": m["hidden"],
+         "synonyms": ["x"] if m["name"] in measures_with_syn else []}
+        for m in measures
+    ]
 )
 
 # METADATA ********************
@@ -336,78 +284,13 @@ synonym_items = (
 
 # CELL ********************
 
-# Call the UDF for each test and collect results.
-# NOTE: The previous implementation passed full pandas-like structures into the
-# UDF, which caused deep nested conversions on the JVM side and triggered a
-# RecursionError in py4j. We now convert each input collection into a minimal
-# list-of-dicts made of only primitive types (str, bool, int) so that the JVM
-# marshaller can handle it safely.
-
-from copy import deepcopy
-
-
-def _materialize_items(items):
-    """Return a deep-copied list with only basic Python types.
-
-    notebookutils.udf uses py4j to marshal Python objects into Java. Very
-    complex/nested objects (e.g., pandas Series, custom classes) can cause
-    recursive conversions and hit Python's recursion limit. This helper
-    defensively converts each element into a plain dict of primitives.
-    """
-
-    materialized = []
-    for it in items:
-        # Ensure a plain dict and deep-copy to break any references
-        d = dict(it)
-        materialized.append(
-            {
-                "name": str(d.get("name", "")),
-                # Optional fields depending on the scoring function
-                "description": str(d.get("description", "")) if "description" in d else None,
-                "hidden": bool(d.get("hidden", False)) if "hidden" in d else None,
-                "synonyms": [str(s) for s in d.get("synonyms", [])] if "synonyms" in d else None,
-            }
-        )
-
-    return materialized
-
-
-tables_for_desc_m = _materialize_items(tables_for_desc)
-columns_for_desc_m = _materialize_items(columns_for_desc)
-measures_for_desc_m = _materialize_items(measures_for_desc)
-
-friendly_items_m = _materialize_items(friendly_items)
-synonym_items_m = _materialize_items(synonym_items)
-
-
-# Call the UDFs with the simplified payloads.
-
+# Call the UDF for each test.
 tests = [
-    (
-        "Table descriptions",
-        3,
-        udf_client.score_description_coverage(items=tables_for_desc_m, maxPoints=3),
-    ),
-    (
-        "Column descriptions",
-        4,
-        udf_client.score_description_coverage(items=columns_for_desc_m, maxPoints=4),
-    ),
-    (
-        "Measure descriptions",
-        5,
-        udf_client.score_description_coverage(items=measures_for_desc_m, maxPoints=5),
-    ),
-    (
-        "Business-friendly names",
-        4,
-        udf_client.score_business_friendly_names(items=friendly_items_m, maxPoints=4),
-    ),
-    (
-        "Synonyms defined",
-        4,
-        udf_client.score_synonym_coverage(items=synonym_items_m, maxPoints=4),
-    ),
+    ("Table descriptions",     3, udf_client.score_description_coverage(items=tables_for_desc,   maxPoints=3)),
+    ("Column descriptions",    4, udf_client.score_description_coverage(items=columns_for_desc,  maxPoints=4)),
+    ("Measure descriptions",   5, udf_client.score_description_coverage(items=measures_for_desc, maxPoints=5)),
+    ("Business-friendly names",4, udf_client.score_business_friendly_names(items=friendly_items, maxPoints=4)),
+    ("Synonyms defined",       4, udf_client.score_synonym_coverage(items=synonym_items,         maxPoints=4)),
 ]
 
 records = []
