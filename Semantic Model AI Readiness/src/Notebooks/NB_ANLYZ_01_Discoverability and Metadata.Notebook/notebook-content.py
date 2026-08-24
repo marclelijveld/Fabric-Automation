@@ -20,6 +20,7 @@
 # # NB_ANLYZ_01 - Discoverability & Metadata
 # Measures the **Discoverability & metadata** category (max 20 pts) of a Power BI
 # semantic model's AI Readiness score.
+# 
 # Tests performed:
 # | Test | Points |
 # |------|-------:|
@@ -28,6 +29,7 @@
 # | Measure descriptions | 5 |
 # | Business-friendly names | 4 |
 # | Synonyms defined | 4 |
+# 
 # Reusable scoring logic lives in the `UDF_READ_SemanticModels` user data
 # function. This notebook orchestrates metadata retrieval, calls the UDF, prints
 # results, and appends one row per test to the `AiReadiness.Scores` Delta table
