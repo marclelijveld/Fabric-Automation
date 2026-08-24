@@ -37,7 +37,6 @@
 %pip install semantic-link-labs
 import sempy.fabric as fabric
 import sempy_labs as labs
-from sempy_labs.tom import connect_semantic_model
 import notebookutils
 
 # METADATA ********************
@@ -99,25 +98,26 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 
 # CELL ********************
 
-# Fetch model metadata via Semantic Link.
+# Fetch metadata via Semantic Link.
+# Per the docs:
+#   - fabric.list_tables(dataset)                       -> Name, Description, Hidden, Data Category
+#   - fabric.list_tables(dataset, include_columns=True) -> one row per column (with parent table info)
+#   - fabric.list_relationships(dataset)                -> relationship metadata
+# There is no fabric.list_columns(); include_columns=True is the supported way.
 tables_df = fabric.list_tables(
     dataset=semantic_model_id,
     workspace=workspace_id,
-    extended=True,
-    additional_xmla_properties=["DataCategory", "IsHidden"],
 )
 
-columns_df = fabric.list_columns(
+tables_with_columns_df = fabric.list_tables(
     dataset=semantic_model_id,
     workspace=workspace_id,
-    extended=True,
-    additional_xmla_properties=["DataType", "IsHidden", "IsKey", "SummarizeBy"],
+    include_columns=True,
 )
 
 relationships_df = fabric.list_relationships(
     dataset=semantic_model_id,
     workspace=workspace_id,
-    extended=True,
 )
 
 
@@ -137,37 +137,61 @@ def _bool(v) -> bool:
     return str(v).strip().lower() in {"true", "1", "yes"}
 
 
-# Normalize tables -> plain primitive dicts (defensive against py4j recursion).
+def _str(v) -> str:
+    if v is None:
+        return ""
+    try:
+        if v != v:  # pandas NaN check
+            return ""
+    except Exception:
+        pass
+    return str(v)
+
+
+# Diagnostic output so DataFrame column names are visible in the notebook log.
+print("tables_df columns:              ", list(tables_df.columns))
+print("tables_with_columns_df columns: ", list(tables_with_columns_df.columns))
+print("relationships_df columns:       ", list(relationships_df.columns))
+
+# Normalize tables -> plain primitive dicts.
 t_name = _col(tables_df, "Name", "Table Name")
-t_hidden = _col(tables_df, "IsHidden", "Is Hidden", "Hidden")
-t_datacat = _col(tables_df, "DataCategory", "Data Category")
+t_hidden = _col(tables_df, "Hidden", "IsHidden", "Is Hidden")
+t_datacat = _col(tables_df, "Data Category", "DataCategory")
 tables = [
     {
-        "name": str(row[t_name]),
+        "name": _str(row[t_name]),
         "hidden": _bool(row[t_hidden]) if t_hidden else False,
-        "dataCategory": str(row[t_datacat]) if t_datacat and row[t_datacat] is not None else "",
+        "dataCategory": _str(row[t_datacat]) if t_datacat else "",
     }
     for _, row in tables_df.iterrows()
 ]
 
+# Set of tables flagged as date tables (Data Category == 'Time').
+date_table_names = {t["name"] for t in tables if t["dataCategory"].strip().lower() == "time"}
+date_table_flagged = len(date_table_names) > 0
+
 # Normalize columns.
-c_table = _col(columns_df, "Table Name", "Table", "TableName")
-c_name = _col(columns_df, "Column Name", "Name", "ColumnName")
-c_type = _col(columns_df, "DataType", "Data Type", "Type", "Column Type")
-c_hidden = _col(columns_df, "IsHidden", "Is Hidden", "Hidden")
-c_key = _col(columns_df, "IsKey", "Is Key", "Key")
-c_sum = _col(columns_df, "SummarizeBy", "Summarize By", "Summarization")
-columns = [
-    {
-        "name": str(row[c_name]),
-        "table": str(row[c_table]) if c_table else "",
-        "dataType": str(row[c_type]) if c_type and row[c_type] is not None else "",
+c_table = _col(tables_with_columns_df, "Table Name", "Table", "TableName", "Name")
+c_name = _col(tables_with_columns_df, "Column Name", "ColumnName")
+c_type = _col(tables_with_columns_df, "Data Type", "DataType", "Type", "Column Type")
+c_hidden = _col(tables_with_columns_df, "Column Hidden", "Hidden", "IsHidden", "Is Hidden")
+c_key = _col(tables_with_columns_df, "Key", "IsKey", "Is Key")
+c_sum = _col(tables_with_columns_df, "Summarize By", "SummarizeBy", "Summarization")
+columns = []
+for _, row in tables_with_columns_df.iterrows():
+    col_name = _str(row[c_name]) if c_name else ""
+    if not col_name or col_name.startswith("RowNumber"):
+        continue
+    tbl = _str(row[c_table]) if c_table else ""
+    columns.append({
+        "name": col_name,
+        "table": tbl,
+        "dataType": _str(row[c_type]) if c_type else "",
         "hidden": _bool(row[c_hidden]) if c_hidden else False,
         "isKey": _bool(row[c_key]) if c_key else False,
-        "summarizeBy": str(row[c_sum]) if c_sum and row[c_sum] is not None else "",
-    }
-    for _, row in columns_df.iterrows()
-]
+        "summarizeBy": _str(row[c_sum]) if c_sum else "",
+        "inDateTable": tbl in date_table_names,
+    })
 
 # Normalize relationships.
 r_from_t = _col(relationships_df, "From Table", "FromTable")
@@ -179,18 +203,19 @@ r_multiplicity = _col(relationships_df, "Multiplicity", "Cardinality")
 r_cfb = _col(relationships_df, "Cross Filtering Behavior", "CrossFilteringBehavior")
 relationships = [
     {
-        "fromTable": str(row[r_from_t]) if r_from_t else "",
-        "fromColumn": str(row[r_from_c]) if r_from_c else "",
-        "toTable": str(row[r_to_t]) if r_to_t else "",
-        "toColumn": str(row[r_to_c]) if r_to_c else "",
+        "fromTable": _str(row[r_from_t]) if r_from_t else "",
+        "fromColumn": _str(row[r_from_c]) if r_from_c else "",
+        "toTable": _str(row[r_to_t]) if r_to_t else "",
+        "toColumn": _str(row[r_to_c]) if r_to_c else "",
         "active": _bool(row[r_active]) if r_active else True,
-        "multiplicity": str(row[r_multiplicity]) if r_multiplicity and row[r_multiplicity] is not None else "",
-        "crossFilterBehavior": str(row[r_cfb]) if r_cfb and row[r_cfb] is not None else "",
+        "multiplicity": _str(row[r_multiplicity]) if r_multiplicity else "",
+        "crossFilterBehavior": _str(row[r_cfb]) if r_cfb else "",
     }
     for _, row in relationships_df.iterrows()
 ]
 
 print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(relationships)} relationships.")
+print(f"Date table(s) detected via Data Category == 'Time': {sorted(date_table_names) if date_table_names else 'none'}")
 
 # METADATA ********************
 
@@ -201,47 +226,12 @@ print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(relationships
 
 # CELL ********************
 
-# Detect date table(s) via TOM.
-# A table qualifies when it has DataCategory == 'Time' AND at least one column
-# marked IsKey with a DateTime data type (Power BI 'Mark as date table' rule).
-# We also collect the set of ALL date-table names so we can flag their columns
-# for the auto-summarization test (date columns must have SummarizeBy=None).
-date_table_flagged = False
-date_table_name = None
-date_table_names: set = set()
-with connect_semantic_model(
-    dataset=semantic_model_id, workspace=workspace_id, readonly=True
-) as tom:
-    for t in tom.model.Tables:
-        try:
-            data_cat = getattr(t, "DataCategory", None)
-        except Exception:
-            data_cat = None
-        if str(data_cat or "").lower() != "time":
-            continue
-        # Any Time-categorised table gets its columns treated as date-table columns.
-        date_table_names.add(t.Name)
-        for col in t.Columns:
-            try:
-                is_key = bool(getattr(col, "IsKey", False))
-                dtype = str(getattr(col, "DataType", "")).lower()
-            except Exception:
-                is_key, dtype = False, ""
-            if is_key and "date" in dtype:
-                if not date_table_flagged:
-                    date_table_flagged = True
-                    date_table_name = t.Name
-
-print(
-    f"Date table flagged: {date_table_flagged}"
-    + (f" (table '{date_table_name}')" if date_table_name else "")
-)
-print(f"Date/time tables detected: {sorted(date_table_names) if date_table_names else 'none'}")
-
-# Attach the in-date-table flag onto each column so the UDF can apply the
-# correct SummarizeBy rule per column.
-for c in columns:
-    c["inDateTable"] = c.get("table", "") in date_table_names
+# Date-table flag is derived directly from the Data Category column above -
+# no TOM connection needed.
+if date_table_flagged:
+    print(f"Date table flagged as such: True (tables: {sorted(date_table_names)})")
+else:
+    print("Date table flagged as such: False (no table has Data Category == 'Time')")
 
 # METADATA ********************
 

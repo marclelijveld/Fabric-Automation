@@ -84,14 +84,14 @@ Facts & dimensions identifiable score:
 Hidden tables that are also classified as fact/dim are counted only once.
 
 ### Date table detection
-A model passes the date-table test when at least one table simultaneously
-satisfies:
-- `DataCategory == "Time"` (i.e. Power BI's "Mark as date table"), **and**
-- has a column with `IsKey == True` whose data type contains `date` (typically
-  `DateTime`).
+The check uses `fabric.list_tables(dataset)` and passes when **any** table has
+`Data Category == "Time"`. This is the property Power BI sets when the modeler
+uses "Mark as date table" (or when the table was authored as a date table in
+Tabular Editor / TMDL).
 
-This intentionally requires the full Power BI contract rather than accepting
-any auto-detected date hierarchy.
+All tables with `Data Category == "Time"` are also treated as date tables for
+the auto-summarization test — their numeric columns are expected to have
+`SummarizeBy == "None"`.
 
 ### Technical / helper table detection
 A table name is considered technical when it matches any of:

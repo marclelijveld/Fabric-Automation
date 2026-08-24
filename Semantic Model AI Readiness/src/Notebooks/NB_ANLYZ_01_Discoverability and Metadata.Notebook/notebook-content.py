@@ -101,54 +101,118 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 
 # CELL ********************
 
-# Fetch tables, columns and measures with descriptions & IsHidden directly from
-# TOM. The Semantic Link ``list_*`` helpers can return stale or non-authoritative
-# description values (e.g. defaults from the model tables view), while TOM
-# exposes the exact string stored in the semantic model definition.
-tables = []
+# Fetch metadata via Semantic Link.
+# Per the docs:
+#   - fabric.list_tables(dataset)                        -> one row per table (Name, Description, Hidden, Data Category)
+#   - fabric.list_tables(dataset, include_columns=True)  -> one row per column with the parent table
+#   - fabric.list_measures(dataset)                      -> one row per measure
+# Note: include_columns cannot be combined with extended/include_partitions.
+tables_df = fabric.list_tables(
+    dataset=semantic_model_id,
+    workspace=workspace_id,
+)
+tables_with_columns_df = fabric.list_tables(
+    dataset=semantic_model_id,
+    workspace=workspace_id,
+    include_columns=True,
+)
+measures_df = fabric.list_measures(
+    dataset=semantic_model_id,
+    workspace=workspace_id,
+)
+
+
+def _col(df, *candidates, default=None):
+    """Return the first column name in df matching any candidate, else default."""
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return default
+
+
+def _bool(v) -> bool:
+    if isinstance(v, bool):
+        return v
+    if v is None:
+        return False
+    return str(v).strip().lower() in {"true", "1", "yes"}
+
+
+def _str(v) -> str:
+    if v is None:
+        return ""
+    try:
+        if v != v:  # pandas NaN is not equal to itself
+            return ""
+    except Exception:
+        pass
+    return str(v)
+
+
+# Diagnostic output so field names are visible in the notebook log.
+print("tables_df columns:              ", list(tables_df.columns))
+print("tables_with_columns_df columns: ", list(tables_with_columns_df.columns))
+print("measures_df columns:            ", list(measures_df.columns))
+
+# Normalize tables.
+t_name = _col(tables_df, "Name", "Table Name")
+t_desc = _col(tables_df, "Description")
+t_hidden = _col(tables_df, "Hidden", "IsHidden", "Is Hidden")
+tables = [
+    {
+        "name": _str(row[t_name]),
+        "description": _str(row[t_desc]) if t_desc else "",
+        "hidden": _bool(row[t_hidden]) if t_hidden else False,
+    }
+    for _, row in tables_df.iterrows()
+]
+
+# Normalize columns (rows are columns; parent table lives in a table-name field).
+c_table = _col(tables_with_columns_df, "Table Name", "Table", "TableName", "Name")
+c_name = _col(tables_with_columns_df, "Column Name", "ColumnName")
+c_desc = _col(tables_with_columns_df, "Column Description", "Description")
+c_hidden = _col(tables_with_columns_df, "Column Hidden", "Hidden", "IsHidden", "Is Hidden")
+c_key = _col(tables_with_columns_df, "Key", "IsKey", "Is Key")
+c_type = _col(tables_with_columns_df, "Data Type", "DataType", "Type", "Column Type")
 columns = []
-measures = []
+for _, row in tables_with_columns_df.iterrows():
+    col_name = _str(row[c_name]) if c_name else ""
+    if not col_name or col_name.startswith("RowNumber"):
+        continue
+    tbl = _str(row[c_table]) if c_table else ""
+    columns.append({
+        "name": f"{tbl}[{col_name}]",
+        "short_name": col_name,
+        "description": _str(row[c_desc]) if c_desc else "",
+        "hidden": _bool(row[c_hidden]) if c_hidden else False,
+        "is_key": _bool(row[c_key]) if c_key else False,
+        "type": _str(row[c_type]) if c_type else "",
+    })
 
-with connect_semantic_model(
-    dataset=semantic_model_id, workspace=workspace_id, readonly=True
-) as tom:
-    for t in tom.model.Tables:
-        t_name = t.Name
-        t_hidden = bool(getattr(t, "IsHidden", False))
-        t_desc = getattr(t, "Description", "") or ""
-        tables.append({
-            "name": str(t_name),
-            "description": str(t_desc),
-            "hidden": t_hidden,
-        })
-        for c in t.Columns:
-            c_name = c.Name
-            # Skip TOM's internal RowNumber columns.
-            if not c_name or str(c_name).startswith("RowNumber"):
-                continue
-            c_hidden = bool(getattr(c, "IsHidden", False))
-            c_desc = getattr(c, "Description", "") or ""
-            c_is_key = bool(getattr(c, "IsKey", False))
-            c_type = str(getattr(c, "DataType", "") or "")
-            columns.append({
-                "name": f"{t_name}[{c_name}]",
-                "short_name": str(c_name),
-                "description": str(c_desc),
-                "hidden": c_hidden or t_hidden,
-                "is_key": c_is_key,
-                "type": c_type,
-            })
-        for m in t.Measures:
-            m_hidden = bool(getattr(m, "IsHidden", False))
-            m_desc = getattr(m, "Description", "") or ""
-            measures.append({
-                "name": str(m.Name),
-                "table": str(t_name),
-                "description": str(m_desc),
-                "hidden": m_hidden,
-            })
+# Normalize measures.
+m_table = _col(measures_df, "Table Name", "Table")
+m_name = _col(measures_df, "Measure Name", "Name")
+m_desc = _col(measures_df, "Description")
+m_hidden = _col(measures_df, "Hidden", "IsHidden", "Is Hidden")
+measures = [
+    {
+        "name": _str(row[m_name]),
+        "table": _str(row[m_table]) if m_table else "",
+        "description": _str(row[m_desc]) if m_desc else "",
+        "hidden": _bool(row[m_hidden]) if m_hidden else False,
+    }
+    for _, row in measures_df.iterrows()
+]
 
-print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} measures from TOM.")
+print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} measures.")
+
+# Sanity peek so unexpected description values are obvious in the log.
+print("Sample table descriptions:")
+for t in tables[:5]:
+    print(f"  - {t['name']!r}: description={t['description']!r}, hidden={t['hidden']}")
+print("Sample column descriptions:")
+for c in columns[:5]:
+    print(f"  - {c['name']!r}: description={c['description']!r}, hidden={c['hidden']}, is_key={c['is_key']}")
 
 # METADATA ********************
 
