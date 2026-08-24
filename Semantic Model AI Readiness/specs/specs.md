@@ -41,7 +41,7 @@ Max score: 20
 | Date Table is flagged as such                 | 4      | Is there a Date table present and flagged as such?                             |
 | Facts & dimensions can be identified          | 3      | Tables can be unambiguously identified, and other irrelevant tables are hidden |
 | Technical tables are hidden<br>(for AI)       | 4      | Technical / helper tables are hidden for AI.                                   |
-| Auto summarization for numeric columns is set | 4      | % of numeric columns having auto summarization configured                      |
+| Auto summarization for numeric columns is set | 4      | % of numeric columns used in a relationship or referenced by a measure that have SummarizeBy = None |
 
 
 ### 3. Measures & Calculations

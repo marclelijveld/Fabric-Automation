@@ -72,7 +72,7 @@ the score for transparency.
 | Date Table is flagged as such | 4 | Boolean: at least one table has `DataCategory == "Time"` and a key column of type `DateTime`. |
 | Facts & dimensions can be identified | 3 | Ratio of tables that are either classified fact/dim OR hidden. |
 | Technical tables are hidden (for AI) | 4 | Ratio of technical-named tables that are hidden. |
-| Auto summarization for numeric columns is set | 4 | Ratio of columns with a sensible `SummarizeBy` configuration. |
+| Auto summarization for numeric columns is set | 4 | Ratio of numeric columns used in relationships or referenced by measures that have `SummarizeBy = None`. |
 
 ### Fact / dimension classification
 Purely relationship-driven — no naming heuristics.
@@ -99,9 +99,9 @@ The check uses `fabric.list_tables(dataset)` and passes when **any** table has
 uses "Mark as date table" (or when the table was authored as a date table in
 Tabular Editor / TMDL).
 
-All tables with `Data Category == "Time"` are also treated as date tables for
-the auto-summarization test — their numeric columns are expected to have
-`SummarizeBy == "None"`.
+All tables with `Data Category == "Time"` are still surfaced by the date-table
+test above; the auto-summarization test no longer treats them specially — see
+the next section.
 
 ### Technical / helper table detection
 A table name is considered technical when it matches any of:
@@ -117,19 +117,27 @@ Score = `hidden_technical / total_technical * 4`. When no technical tables are
 detected, the full 4 points are awarded.
 
 ### Auto summarization (`SummarizeBy`)
-Only **numeric** columns are considered — `Whole Number` (Int64/Integer),
-`Decimal Number` (Double/Decimal/DecimalNumber/FixedDecimalNumber) and
-`Currency`. Non-numeric columns and TOM row-number system columns are excluded
-from the denominator.
+Scoped to **numeric columns that participate in the model** — the setting only
+matters when a client tool would actually try to aggregate the column. A
+numeric column is in scope when either of these is true:
 
-A numeric column passes when:
-- It lives in a **date/time table** (its table has `DataCategory == "Time"`)
-  AND `SummarizeBy == "None"`. Summing quarters, day numbers, or year values
-  is nonsensical.
-- OR it lives in any **other** table AND `SummarizeBy` is explicitly set (i.e.
-  not `Default` and not empty). Explicit choices like `Sum`, `Average`, `Min`,
-  `Max`, `None`, `Count`, `DistinctCount` all pass — the AI Readiness check is
-  that the modeler made a deliberate choice, not what that choice was.
+- **In a relationship** - the column appears on the `From` or `To` side of any
+  relationship (typically a foreign or primary key).
+- **Used in a measure** - the column is referenced in at least one measure's
+  DAX expression (parsed by scanning for `'Table'[Column]` / `Table[Column]`
+  patterns in `Measure Expression`).
 
-Score = `ok / total * 4`. When no numeric columns exist at all, the full 4
+Numeric here means data type `Whole Number` (Int64 / Integer), `Decimal Number`
+(Double / Decimal / DecimalNumber / FixedDecimalNumber) or `Currency`.
+Non-numeric columns and TOM row-number system columns are excluded, as are
+numeric columns that are neither in a relationship nor referenced by a measure.
+
+**Rule:** every in-scope numeric column must have `SummarizeBy == "None"`.
+
+- Foreign / primary keys and numeric IDs: summing them produces meaningless
+  totals.
+- Columns already aggregated by a measure: the measure IS the aggregation;
+  implicit summing by the client tool duplicates the logic.
+
+Score = `ok / total * 4`. When no in-scope numeric columns exist, the full 4
 points are awarded by convention.

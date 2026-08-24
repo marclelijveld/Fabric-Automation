@@ -217,6 +217,52 @@ relationships = [
 print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(relationships)} relationships.")
 print(f"Date table(s) detected via Data Category == 'Time': {sorted(date_table_names) if date_table_names else 'none'}")
 
+# --- Flag numeric columns that participate in the model -------------------
+# Auto-summarization scoring only applies to numeric columns that are either
+# used in a relationship OR referenced by at least one measure. Compute both
+# lookup sets here so the UDF stays purely functional.
+import re as _re
+
+# 1) Columns used in relationships (from and to side).
+cols_in_rel = set()
+for r in relationships:
+    if r["fromTable"] and r["fromColumn"]:
+        cols_in_rel.add((r["fromTable"], r["fromColumn"]))
+    if r["toTable"] and r["toColumn"]:
+        cols_in_rel.add((r["toTable"], r["toColumn"]))
+
+# 2) Columns referenced in any measure expression.
+#    We parse the DAX expression looking for 'Table'[Column] or Table[Column]
+#    references. This is a heuristic; false positives are rare because DAX
+#    column references always take this exact form.
+measures_df = fabric.list_measures(
+    dataset=semantic_model_id, workspace=workspace_id
+).fillna("")
+
+_ref_pattern = _re.compile(r"'([^']+)'\[([^\]]+)\]|([A-Za-z_][\w ]*)\[([^\]]+)\]")
+
+cols_in_measure = set()
+for _, mrow in measures_df.iterrows():
+    expr = str(mrow.get("Measure Expression", "") or "")
+    if not expr:
+        continue
+    for m in _ref_pattern.finditer(expr):
+        tname = (m.group(1) or m.group(3) or "").strip()
+        cname = (m.group(2) or m.group(4) or "").strip()
+        if tname and cname:
+            cols_in_measure.add((tname, cname))
+
+# 3) Attach flags to each column.
+for c in columns:
+    key = (c["table"], c["name"])
+    c["inRelationship"] = key in cols_in_rel
+    c["usedInMeasure"] = key in cols_in_measure
+
+print(
+    f"Columns used in relationships: {len(cols_in_rel)}. "
+    f"Column references found in measure expressions: {len(cols_in_measure)}."
+)
+
 # METADATA ********************
 
 # META {

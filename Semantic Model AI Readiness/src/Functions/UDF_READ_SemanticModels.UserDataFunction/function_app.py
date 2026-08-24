@@ -481,70 +481,74 @@ def score_technical_tables_hidden(tables: list, maxPoints: int) -> dict:
 
 @udf.function()
 def score_auto_summarization(columns: list, maxPoints: int) -> dict:
-    """Score auto-summarization on numeric columns.
+    """Score auto-summarization on numeric columns that participate in the model.
 
-    Considers only columns with a numeric data type (Whole Number = Int64 /
-    Integer, Decimal Number = Double / Decimal / DecimalNumber / Currency).
+    Only numeric columns (Whole Number / Decimal Number / Currency) that are
+    **used in a relationship** or **referenced by at least one measure** are
+    evaluated. Those columns should have ``SummarizeBy == "None"`` because
+    summing a foreign key or an ID column produces nonsense, and columns that
+    are already aggregated via a measure should not be implicitly summed by
+    client tools either.
 
-    A numeric column passes when:
-    - It lives in a table flagged as a date table (``inDateTable == True``) AND
-      ``SummarizeBy == "None"`` (summing quarters, day numbers, etc. is
-      nonsensical), OR
-    - It lives in any other table AND ``SummarizeBy`` is explicitly set (i.e.
-      not ``Default`` and not empty).
+    Each candidate column must carry:
+      - ``dataType``      - the DAX data type string
+      - ``summarizeBy``   - current SummarizeBy setting
+      - ``inRelationship``- True when the column appears in any relationship
+      - ``usedInMeasure`` - True when at least one measure references it
 
     See ``docs/scoring-methodology.md`` for the full rule set.
     """
     cols = columns or []
-    numeric = []
+    candidates = []
     for c in cols:
         name = c.get("name", "")
         if not name or name.startswith("RowNumber"):
             continue
         dtype = str(c.get("dataType") or "").strip().lower()
-        if dtype in _NUMERIC_DATA_TYPES:
-            numeric.append(c)
+        if dtype not in _NUMERIC_DATA_TYPES:
+            continue
+        if not (bool(c.get("inRelationship", False)) or bool(c.get("usedInMeasure", False))):
+            continue
+        candidates.append(c)
 
-    total = len(numeric)
+    total = len(candidates)
     ok = 0
     misconfigured = []
-    for c in numeric:
+    for c in candidates:
         summarize_by = str(c.get("summarizeBy") or "").strip()
         summarize_norm = summarize_by.lower()
-        in_date_table = bool(c.get("inDateTable", False))
         name = c.get("name", "")
         table = c.get("table", "")
+        reason_parts = []
+        if c.get("inRelationship"):
+            reason_parts.append("in relationship")
+        if c.get("usedInMeasure"):
+            reason_parts.append("used in measure")
+        why = ", ".join(reason_parts) or "candidate"
 
-        if in_date_table:
-            passed = summarize_norm == "none"
-            if not passed:
-                misconfigured.append(
-                    f"{table}[{name}] (date table, SummarizeBy={summarize_by or 'Default'} - should be None)"
-                )
-        else:
-            passed = summarize_norm not in {"", "default"}
-            if not passed:
-                misconfigured.append(
-                    f"{table}[{name}] (SummarizeBy={summarize_by or 'Default'} - should be explicitly set)"
-                )
-
+        passed = summarize_norm == "none"
         if passed:
             ok += 1
+        else:
+            misconfigured.append(
+                f"{table}[{name}] ({why}, SummarizeBy={summarize_by or 'Default'} - should be None)"
+            )
 
     coverage = _pct(ok, total)
     score = _points_from_pct(coverage, maxPoints)
 
     if total == 0:
         rationale = (
-            f"Auto summarization: no numeric columns detected in the model; awarded "
-            f"{maxPoints}/{maxPoints} points by convention."
+            "Auto summarization: no numeric columns are used in relationships or "
+            f"referenced by measures; awarded {maxPoints}/{maxPoints} points by convention."
         )
         score = int(maxPoints)
         coverage = 100.0
     else:
         rationale = (
-            f"Auto summarization: {ok}/{total} numeric columns have a sensible "
-            f"SummarizeBy setting ({coverage}%). Awarded {score}/{maxPoints} points."
+            f"Auto summarization: {ok}/{total} numeric columns used in relationships "
+            f"or measures have SummarizeBy=None ({coverage}%). "
+            f"Awarded {score}/{maxPoints} points."
         )
         if misconfigured:
             rationale += f" Examples of issues: {'; '.join(misconfigured[:5])}."
