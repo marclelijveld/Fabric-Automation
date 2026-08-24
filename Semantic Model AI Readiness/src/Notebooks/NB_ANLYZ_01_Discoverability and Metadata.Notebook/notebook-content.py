@@ -101,25 +101,13 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 
 # CELL ********************
 
-# Fetch metadata via Semantic Link, using ONLY the documented functions.
-#   fabric.list_tables(dataset, workspace)                       -> Name, Description, Hidden, Data Category, Type
-#   fabric.list_tables(dataset, workspace, include_columns=True) -> one row per column with the parent table info
-#   fabric.list_measures(dataset, workspace)                     -> Table Name, Measure Name, Measure Description, Measure Hidden, ...
+# Fetch TABLES via Semantic Link.
+#   fabric.list_tables(dataset, workspace) -> Name, Description, Hidden, Data Category, Type
 tables_df = fabric.list_tables(
     dataset=semantic_model_id, workspace=workspace_id
 ).fillna("")
-tables_columns_df = fabric.list_tables(
-    dataset=semantic_model_id, workspace=workspace_id, include_columns=True
-).fillna("")
-measures_df = fabric.list_measures(
-    dataset=semantic_model_id, workspace=workspace_id
-).fillna("")
+print("tables_df columns:  ", list(tables_df.columns))
 
-print("tables_df columns:         ", list(tables_df.columns))
-print("tables_columns_df columns: ", list(tables_columns_df.columns))
-print("measures_df columns:       ", list(measures_df.columns))
-
-# Tables
 tables = [
     {
         "name": str(r["Name"]),
@@ -129,24 +117,13 @@ tables = [
     for _, r in tables_df.iterrows()
 ]
 
-# Columns (from list_tables include_columns=True)
-# Column-side field names are printed above so any mismatch is immediately visible.
-_col_desc = "Column Description" if "Column Description" in tables_columns_df.columns else "Description"
-_col_hidden = "Column Hidden" if "Column Hidden" in tables_columns_df.columns else "Hidden"
-columns = []
-for _, r in tables_columns_df.iterrows():
-    row = r.to_dict()
-    col_name = str(row.get("Column Name", ""))
-    if not col_name or col_name.startswith("RowNumber"):
-        continue
-    columns.append({
-        "name": col_name,
-        "table": str(row.get("Table Name", "")),
-        "description": str(row.get(_col_desc, "")),
-        "hidden": bool(row.get(_col_hidden, False)),
-    })
+# Fetch MEASURES via Semantic Link (completely independent of the tables call).
+#   fabric.list_measures(dataset, workspace) -> Table Name, Measure Name, Measure Description, Measure Hidden, ...
+measures_df = fabric.list_measures(
+    dataset=semantic_model_id, workspace=workspace_id
+).fillna("")
+print("measures_df columns:", list(measures_df.columns))
 
-# Measures (exact column names per Semantic Link docs)
 measures = [
     {
         "name": str(r["Measure Name"]),
@@ -156,6 +133,26 @@ measures = [
     }
     for _, r in measures_df.iterrows()
 ]
+
+# Fetch COLUMNS via TOM (fully separate from tables/measures). We iterate the
+# model directly because fabric.list_tables(include_columns=True) does not
+# reliably return column rows for every semantic model.
+columns = []
+with connect_semantic_model(
+    dataset=semantic_model_id, workspace=workspace_id, readonly=True
+) as tom:
+    for t in tom.model.Tables:
+        for c in t.Columns:
+            col_name = str(c.Name)
+            # Skip auto-generated row-number columns
+            if col_name.startswith("RowNumber"):
+                continue
+            columns.append({
+                "name": col_name,
+                "table": str(t.Name),
+                "description": str(c.Description or ""),
+                "hidden": bool(c.IsHidden),
+            })
 
 print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} measures.")
 
