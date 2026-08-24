@@ -37,6 +37,7 @@
 %pip install semantic-link-labs
 import sempy.fabric as fabric
 import sempy_labs as labs
+from sempy_labs.tom import connect_semantic_model
 import notebookutils
 
 # METADATA ********************
@@ -101,18 +102,15 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 # Fetch metadata via Semantic Link.
 # Per the docs:
 #   - fabric.list_tables(dataset)                       -> Name, Description, Hidden, Data Category
-#   - fabric.list_tables(dataset, include_columns=True) -> one row per column (with parent table info)
-#   - fabric.list_relationships(dataset)                -> relationship metadata
-# There is no fabric.list_columns(); include_columns=True is the supported way.
+#   - fabric.list_tables(dataset)          -> Name, Description, Hidden, Data Category
+#   - fabric.list_relationships(dataset)   -> relationship metadata
+# Columns are fetched via TOM (connect_semantic_model) because
+# fabric.list_tables(include_columns=True) does not reliably return column rows
+# for every semantic model. TOM gives us direct, authoritative access to
+# DataType, SummarizeBy, IsKey and IsHidden for every column.
 tables_df = fabric.list_tables(
     dataset=semantic_model_id,
     workspace=workspace_id,
-)
-
-tables_with_columns_df = fabric.list_tables(
-    dataset=semantic_model_id,
-    workspace=workspace_id,
-    include_columns=True,
 )
 
 relationships_df = fabric.list_relationships(
@@ -149,9 +147,8 @@ def _str(v) -> str:
 
 
 # Diagnostic output so DataFrame column names are visible in the notebook log.
-print("tables_df columns:              ", list(tables_df.columns))
-print("tables_with_columns_df columns: ", list(tables_with_columns_df.columns))
-print("relationships_df columns:       ", list(relationships_df.columns))
+print("tables_df columns:        ", list(tables_df.columns))
+print("relationships_df columns: ", list(relationships_df.columns))
 
 # Normalize tables -> plain primitive dicts.
 t_name = _col(tables_df, "Name", "Table Name")
@@ -170,28 +167,26 @@ tables = [
 date_table_names = {t["name"] for t in tables if t["dataCategory"].strip().lower() == "time"}
 date_table_flagged = len(date_table_names) > 0
 
-# Normalize columns.
-c_table = _col(tables_with_columns_df, "Table Name", "Table", "TableName", "Name")
-c_name = _col(tables_with_columns_df, "Column Name", "ColumnName")
-c_type = _col(tables_with_columns_df, "Data Type", "DataType", "Type", "Column Type")
-c_hidden = _col(tables_with_columns_df, "Column Hidden", "Hidden", "IsHidden", "Is Hidden")
-c_key = _col(tables_with_columns_df, "Key", "IsKey", "Is Key")
-c_sum = _col(tables_with_columns_df, "Summarize By", "SummarizeBy", "Summarization")
+# Fetch columns via TOM (mirrors NB01's approach).
 columns = []
-for _, row in tables_with_columns_df.iterrows():
-    col_name = _str(row[c_name]) if c_name else ""
-    if not col_name or col_name.startswith("RowNumber"):
-        continue
-    tbl = _str(row[c_table]) if c_table else ""
-    columns.append({
-        "name": col_name,
-        "table": tbl,
-        "dataType": _str(row[c_type]) if c_type else "",
-        "hidden": _bool(row[c_hidden]) if c_hidden else False,
-        "isKey": _bool(row[c_key]) if c_key else False,
-        "summarizeBy": _str(row[c_sum]) if c_sum else "",
-        "inDateTable": tbl in date_table_names,
-    })
+with connect_semantic_model(
+    dataset=semantic_model_id, workspace=workspace_id, readonly=True
+) as tom:
+    for t in tom.model.Tables:
+        for c in t.Columns:
+            col_name = str(c.Name)
+            if col_name.startswith("RowNumber"):
+                continue
+            tbl = str(t.Name)
+            columns.append({
+                "name": col_name,
+                "table": tbl,
+                "dataType": str(c.DataType),
+                "hidden": bool(c.IsHidden),
+                "isKey": bool(c.IsKey),
+                "summarizeBy": str(c.SummarizeBy),
+                "inDateTable": tbl in date_table_names,
+            })
 
 # Normalize relationships.
 r_from_t = _col(relationships_df, "From Table", "FromTable")
@@ -262,6 +257,29 @@ print(
     f"Columns used in relationships: {len(cols_in_rel)}. "
     f"Column references found in measure expressions: {len(cols_in_measure)}."
 )
+
+# List the in-scope numeric columns (used in a relationship or referenced by a
+# measure) whose SummarizeBy is currently NOT set to None - these are the ones
+# that will lose points on the auto-summarization test.
+_NUMERIC_DTYPES = {
+    "int64", "integer", "int", "wholenumber", "whole number",
+    "double", "decimal", "decimalnumber", "decimal number", "currency",
+    "fixeddecimalnumber", "fixed decimal number",
+}
+_in_scope_bad = [
+    f"{c['table']}[{c['name']}] (SummarizeBy={c['summarizeBy'] or 'Default'})"
+    for c in columns
+    if str(c.get("dataType", "")).strip().lower() in _NUMERIC_DTYPES
+    and (c.get("inRelationship") or c.get("usedInMeasure"))
+    and str(c.get("summarizeBy", "")).strip().lower() != "none"
+]
+print(
+    f"In-scope numeric columns with auto summarization still ON "
+    f"(should be None): {len(_in_scope_bad)}."
+)
+if _in_scope_bad:
+    for _entry in _in_scope_bad:
+        print(f"  - {_entry}")
 
 # METADATA ********************
 
