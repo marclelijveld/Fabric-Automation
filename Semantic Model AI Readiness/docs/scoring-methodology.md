@@ -33,7 +33,7 @@ documents the implementation choices behind those numbers.
 | Column descriptions | 4 | % of **visible, non-key** columns with a non-empty description. Key columns are excluded because they are usually surrogate identifiers. |
 | Measure descriptions | 5 | % of all measures with a non-empty description. |
 | Business-friendly names | 4 | % of visible tables/columns/measures that pass the friendly-name heuristic. |
-| Synonyms defined | 4 | % of non-hidden tables/columns/measures with at least one synonym in any culture. |
+| Synonyms defined | 4 | % of non-hidden tables/columns/measures with at least one **manually authored** synonym in any culture. |
 
 ### Business-friendly name heuristic
 A name is considered friendly when **all** of the following hold:
@@ -51,8 +51,18 @@ Multi-word names must be written in natural language with spaces between words
 
 ### Synonym detection
 Synonyms are gathered from the model's linguistic metadata (Q&A) and from
-object-level translations across all cultures. Any non-empty translated caption
-counts as a synonym for the associated object.
+object-level translations across all cultures. **Only user-authored entries
+count.** Power BI automatically populates linguistic terms with two states that
+are ignored:
+
+- `"State": "Generated"` - the primary name that Q&A generates for every object.
+- `"State": "Suggested"` - thesaurus or ML suggestions.
+
+A term is counted only when its `State` is missing or is anything other than
+`Generated` / `Suggested` (typically `Authored`). Object translations are always
+treated as manual because they only exist when a user explicitly adds them.
+The number of ignored auto-generated / suggested terms is reported alongside
+the score for transparency.
 
 ## Category 2 - Model Structure & Organization
 

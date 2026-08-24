@@ -165,19 +165,32 @@ print(f"Fetched {len(tables)} tables, {len(columns)} columns, {len(measures)} me
 
 # CELL ********************
 
-# Collect names of tables/columns/measures that have at least one synonym.
+# Collect names of tables/columns/measures that have at least one MANUAL synonym.
 # Synonyms live in the model's linguistic metadata (Q&A) and object translations.
-# We keep this in a set-based lookup so no synonym field is added to the base
-# tables/columns/measures collections.
+# Only user-authored entries count. Power BI auto-generates Terms with
+#   "State": "Generated"   -> the primary name itself
+#   "State": "Suggested"   -> thesaurus / ML suggestions
+# Both must be ignored. A synonym counts only when its State is missing or is
+# something else (e.g. "Authored") - i.e. an explicit user entry.
 tables_with_syn: set = set()
-columns_with_syn: set = set()          # keys are column names (short form)
+columns_with_syn: set = set()
 measures_with_syn: set = set()
+
+# Counters for the reasoning output.
+auto_terms = 0        # Generated + Suggested (ignored)
+manual_terms = 0      # Counted
+
+_AUTO_STATES = {"generated", "suggested"}
+
+def _is_manual_term(term_value: dict) -> bool:
+    state = str((term_value or {}).get("State", "")).strip().lower()
+    return state not in _AUTO_STATES
 
 with connect_semantic_model(
     dataset=semantic_model_id, workspace=workspace_id, readonly=True
 ) as tom:
     for culture in tom.model.Cultures:
-        # Object translations (any non-empty translation counts as a synonym signal)
+        # Object translations - a non-empty translation IS a manual entry.
         for tr in culture.ObjectTranslations:
             try:
                 if not tr.Value:
@@ -190,10 +203,11 @@ with connect_semantic_model(
                     columns_with_syn.add(obj.Name)
                 elif "Measure" in otype:
                     measures_with_syn.add(obj.Name)
+                manual_terms += 1
             except Exception:
                 continue
 
-        # Linguistic metadata JSON (explicit Q&A synonyms)
+        # Linguistic metadata JSON (Q&A synonyms). Filter out Generated/Suggested.
         ling = getattr(culture, "LinguisticMetadata", None)
         content = getattr(ling, "Content", None) if ling else None
         if content:
@@ -204,8 +218,23 @@ with connect_semantic_model(
                     binding = (ent.get("Definition") or {}).get("Binding") or {}
                     ce = binding.get("ConceptualEntity")
                     cp = binding.get("ConceptualProperty")
-                    if not (ent.get("Terms") or []):
-                        continue
+
+                    # Terms is a list of single-key dicts: [{"text": {"State": "...", ...}}, ...]
+                    terms = ent.get("Terms") or []
+                    entity_manual = 0
+                    for term in terms:
+                        if not isinstance(term, dict):
+                            continue
+                        for _term_text, term_val in term.items():
+                            if _is_manual_term(term_val):
+                                entity_manual += 1
+                                manual_terms += 1
+                            else:
+                                auto_terms += 1
+
+                    if entity_manual == 0:
+                        continue  # only auto-generated entries -> not a real synonym
+
                     if ce and not cp:
                         tables_with_syn.add(ce)
                     elif ce and cp:
@@ -214,7 +243,11 @@ with connect_semantic_model(
             except Exception:
                 pass
 
-print(f"Synonyms found on {len(tables_with_syn)} tables, {len(columns_with_syn)} columns, {len(measures_with_syn)} measures.")
+print(
+    f"Manual synonyms found on {len(tables_with_syn)} tables, "
+    f"{len(columns_with_syn)} columns, {len(measures_with_syn)} measures. "
+    f"(Ignored {auto_terms} auto-generated/suggested terms; counted {manual_terms} manual terms.)"
+)
 
 # METADATA ********************
 
