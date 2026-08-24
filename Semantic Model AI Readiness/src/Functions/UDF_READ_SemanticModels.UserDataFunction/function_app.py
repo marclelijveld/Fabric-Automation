@@ -479,6 +479,261 @@ def score_technical_tables_hidden(tables: list, maxPoints: int) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Category 3 helpers: time-intelligence detection & time-suffix stripping
+# ---------------------------------------------------------------------------
+
+_TIME_INTEL_PATTERNS = {
+    "YTD/QTD/MTD": {
+        "totalytd", "datesytd",
+        "totalqtd", "datesqtd",
+        "totalmtd", "datesmtd",
+    },
+    "LY/PY (previous period)": {
+        "previousyear", "previousmonth", "previousquarter", "previousday",
+        "dateadd", "parallelperiod",
+    },
+    "SPLY (same period last year)": {
+        "sameperiodlastyear",
+    },
+}
+
+# Trailing tokens that indicate a time-intelligence variant of a base measure.
+_TIME_SUFFIX_TOKENS = {
+    "ytd", "qtd", "mtd", "ly", "py", "lm", "pm", "sply", "yoy", "mom", "qoq",
+    "yty", "last year", "prior year", "previous year", "prev year",
+    "year to date", "quarter to date", "month to date",
+    "same period last year",
+}
+
+
+def _find_dax_functions(expression: str) -> set:
+    """Extract lowercase DAX function names invoked in the expression."""
+    if not isinstance(expression, str) or not expression.strip():
+        return set()
+    return {m.group(1).lower() for m in re.finditer(r"([A-Za-z][A-Za-z0-9_]*)\s*\(", expression)}
+
+
+def _extract_primary_column_ref(expression: str) -> str:
+    """Return the first 'Table'[Column] or Table[Column] reference in an expression.
+
+    Returns a string key of the form ``"table|column"`` (lowercased) or ``""``
+    when no column reference is found.
+    """
+    if not isinstance(expression, str) or not expression.strip():
+        return ""
+    m = re.search(r"'([^']+)'\[([^\]]+)\]|([A-Za-z_][\w ]*)\[([^\]]+)\]", expression)
+    if not m:
+        return ""
+    tname = (m.group(1) or m.group(3) or "").strip().lower()
+    cname = (m.group(2) or m.group(4) or "").strip().lower()
+    if not tname or not cname:
+        return ""
+    return f"{tname}|{cname}"
+
+
+def _strip_time_suffix(name: str) -> str:
+    """Return a base name by removing a trailing time-intelligence token.
+
+    Handles suffixes separated by space, hyphen, underscore or parentheses.
+    Case-insensitive. If nothing is stripped, returns the original stripped name.
+    """
+    if not isinstance(name, str):
+        return ""
+    working = name.strip()
+    # Strip trailing "(YTD)" style parenthetical
+    m = re.match(r"^(.*?)[\s\-_]*\(\s*([A-Za-z ]+?)\s*\)\s*$", working)
+    if m and m.group(2).strip().lower() in _TIME_SUFFIX_TOKENS:
+        return m.group(1).strip().rstrip("-_ ").strip() or working
+    lowered = working.lower()
+    for tok in sorted(_TIME_SUFFIX_TOKENS, key=len, reverse=True):
+        # Match the token as a trailing word, preceded by space/hyphen/underscore.
+        if lowered.endswith(tok):
+            cut = len(working) - len(tok)
+            if cut == 0:
+                continue
+            sep = working[cut - 1]
+            if sep in " -_":
+                stripped = working[: cut - 1].rstrip("-_ ").strip()
+                if stripped:
+                    return stripped
+    return working
+
+
+@udf.function()
+def score_format_strings(measures: list, maxPoints: int) -> dict:
+    """Score the share of non-hidden measures with a Format String applied."""
+    ms = measures or []
+    visible = [m for m in ms if not bool(m.get("hidden", False))]
+    total = len(visible)
+    ok = 0
+    missing = []
+    for m in visible:
+        fmt = str(m.get("formatString") or "").strip()
+        if fmt:
+            ok += 1
+        else:
+            missing.append(f"{m.get('table','')}[{m.get('name','')}]")
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        rationale = (
+            "Format strings: no visible measures in the model; "
+            f"awarded {maxPoints}/{maxPoints} points by convention."
+        )
+        score = int(maxPoints)
+        coverage = 100.0
+    else:
+        rationale = (
+            f"Format strings: {ok}/{total} visible measures have a Format String "
+            f"applied ({coverage}%). Awarded {score}/{maxPoints} points."
+        )
+        if missing:
+            rationale += f" Missing on: {'; '.join(missing[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_time_intelligence(measures: list, maxPoints: int) -> dict:
+    """Score time-intelligence coverage by detecting DAX pattern families.
+
+    Three families are recognised: YTD/QTD/MTD, LY/PY (previous period),
+    SPLY (same period last year). Each detected family contributes an equal
+    share of ``maxPoints``.
+    """
+    ms = measures or []
+    families_found = {}
+    for family, funcs in _TIME_INTEL_PATTERNS.items():
+        hits = []
+        for m in ms:
+            called = _find_dax_functions(m.get("expression") or "")
+            if called & funcs:
+                hits.append(f"{m.get('table','')}[{m.get('name','')}]")
+        if hits:
+            families_found[family] = hits
+
+    total_families = len(_TIME_INTEL_PATTERNS)
+    found_count = len(families_found)
+    coverage = _pct(found_count, total_families)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if found_count == 0:
+        rationale = (
+            "Time intelligence: no measures use YTD/LY/SPLY patterns. "
+            f"Awarded 0/{maxPoints} points."
+        )
+    else:
+        summary = "; ".join(
+            f"{fam} ({len(hits)} measure{'s' if len(hits)!=1 else ''}, e.g. {hits[0]})"
+            for fam, hits in families_found.items()
+        )
+        rationale = (
+            f"Time intelligence: {found_count}/{total_families} pattern families "
+            f"detected - {summary}. Awarded {score}/{maxPoints} points."
+        )
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": found_count,
+        "total": total_families,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_measure_organization(measures: list, maxPoints: int) -> dict:
+    """Score whether related measures share a display folder.
+
+    Two family-detection strategies are combined (results deduped by member set):
+      1. Measures whose DAX expression references the same primary column.
+      2. Measures whose name shares a common base (after stripping trailing
+         time-intelligence tokens such as YTD, LY, PY, SPLY, MoM, YoY).
+
+    Only families with 2+ non-hidden members are evaluated. A family passes
+    when every member has the same non-empty ``displayFolder``.
+    """
+    ms = [m for m in (measures or []) if not bool(m.get("hidden", False))]
+
+    # Strategy 1: group by shared primary column reference.
+    by_column: dict = {}
+    for m in ms:
+        key = _extract_primary_column_ref(m.get("expression") or "")
+        if key:
+            by_column.setdefault(key, []).append(m)
+
+    # Strategy 2: group by shared base name.
+    by_basename: dict = {}
+    for m in ms:
+        base = _strip_time_suffix(m.get("name") or "").lower()
+        if base and base != (m.get("name") or "").strip().lower():
+            by_basename.setdefault(base, []).append(m)
+        else:
+            by_basename.setdefault(base, []).append(m)
+    # Only keep base-name families that actually have >1 members after grouping.
+
+    families = []
+    seen_signatures = set()
+    for source, groups in (("column", by_column), ("name", by_basename)):
+        for key, members in groups.items():
+            if len(members) < 2:
+                continue
+            signature = frozenset((m.get("table",""), m.get("name","")) for m in members)
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            families.append((source, key, members))
+
+    total_families = len(families)
+    passed = 0
+    failures = []
+    for source, key, members in families:
+        folders = {str(m.get("displayFolder") or "").strip() for m in members}
+        has_empty = "" in folders
+        if not has_empty and len(folders) == 1:
+            passed += 1
+        else:
+            member_names = ", ".join(
+                f"{m.get('table','')}[{m.get('name','')}]" for m in members[:3]
+            )
+            reason = "missing display folder" if has_empty else f"inconsistent folders: {sorted(folders)}"
+            failures.append(f"family by {source}='{key}' ({member_names}) - {reason}")
+
+    coverage = _pct(passed, total_families)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total_families == 0:
+        rationale = (
+            "Measure organization: no families of related measures detected "
+            "(no shared base columns or shared base names with 2+ members); "
+            f"awarded {maxPoints}/{maxPoints} points by convention."
+        )
+        score = int(maxPoints)
+        coverage = 100.0
+    else:
+        rationale = (
+            f"Measure organization: {passed}/{total_families} related-measure "
+            f"families share a single non-empty display folder ({coverage}%). "
+            f"Awarded {score}/{maxPoints} points."
+        )
+        if failures:
+            rationale += f" Issues: {'; '.join(failures[:3])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": passed,
+        "total": total_families,
+        "rationale": rationale,
+    }
+
+
 @udf.function()
 def score_auto_summarization(columns: list, maxPoints: int) -> dict:
     """Score auto-summarization on numeric columns that participate in the model.
@@ -559,3 +814,4 @@ def score_auto_summarization(columns: list, maxPoints: int) -> dict:
         "total": total,
         "rationale": rationale,
     }
+

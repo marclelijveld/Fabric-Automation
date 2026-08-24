@@ -34,6 +34,16 @@
       "isPublicEndpointEnabled": true
     },
     {
+      "name": "score_format_strings",
+      "description": "Score the share of non-hidden measures that have a Format String applied.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_measure_organization",
+      "description": "Score whether related measures (shared base column or shared base name) live in a single display folder.",
+      "isPublicEndpointEnabled": true
+    },
+    {
       "name": "score_ratio",
       "description": "Generic proportional scorer based on matched/total counts.",
       "isPublicEndpointEnabled": true
@@ -51,6 +61,11 @@
     {
       "name": "score_technical_tables_hidden",
       "description": "Score whether tables that look technical/helper are hidden from consumers.",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_time_intelligence",
+      "description": "Score coverage of time-intelligence pattern families (YTD/QTD/MTD, LY/PY, SPLY) in measure expressions.",
       "isPublicEndpointEnabled": true
     }
   ],

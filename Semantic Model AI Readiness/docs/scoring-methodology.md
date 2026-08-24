@@ -141,3 +141,54 @@ numeric columns that are neither in a relationship nor referenced by a measure.
 
 Score = `ok / total * 4`. When no in-scope numeric columns exist, the full 4
 points are awarded by convention.
+
+## Category 3 - Measures & Calculations
+
+| Test | Max | Rule |
+|---|---:|---|
+| Measures clearly named | 5 | Ratio of visible measures whose name passes the same strict business-friendly heuristic used in Category 1. |
+| Measures have descriptions | 5 | Ratio of measures with a non-empty, non-placeholder description (uses `Measure Description` from `fabric.list_measures`). |
+| Format strings are applied | 4 | Ratio of visible measures with a non-empty `Format String`. |
+| Time intelligence available | 4 | Number of time-intelligence pattern families detected in measure expressions, out of three. |
+| Measures are organized | 2 | Ratio of related-measure families that share a single non-empty display folder. |
+
+Metadata is fetched with a single call: `fabric.list_measures(dataset, workspace)`.
+
+### Time-intelligence families
+The check inspects every measure's `Measure Expression` for calls to DAX
+functions in the following three families. Each family that is detected in at
+least one measure contributes an equal share of the 4 points.
+
+- **YTD / QTD / MTD** - `TOTALYTD`, `DATESYTD`, `TOTALQTD`, `DATESQTD`,
+  `TOTALMTD`, `DATESMTD`.
+- **LY / PY (previous period)** - `PREVIOUSYEAR`, `PREVIOUSMONTH`,
+  `PREVIOUSQUARTER`, `PREVIOUSDAY`, `DATEADD`, `PARALLELPERIOD`.
+- **SPLY (same period last year)** - `SAMEPERIODLASTYEAR`.
+
+Detection is case-insensitive and extracts every function name of the form
+`NAME(...)` from the expression before intersecting with the family sets.
+
+### Related-measure families (organization)
+Display folders matter when several measures aggregate the same underlying
+concept (e.g. `Sum`, `Min`, `Max`, `Count` over the same base column) or when
+one measure is a time-intelligence variant of another (`Sales`, `Sales YTD`,
+`Sales LY`, `Sales SPLY`).
+
+Two family-detection strategies run in parallel and their results are deduped
+by member set:
+
+1. **Shared base column** - the first `'Table'[Column]` reference parsed out
+   of each measure's DAX expression. Measures referencing the same column are
+   grouped.
+2. **Shared base name** - the measure name with a trailing time-intelligence
+   token removed (`YTD`, `QTD`, `MTD`, `LY`, `PY`, `SPLY`, `MoM`, `YoY`, etc.).
+   Case-insensitive; the token must be a whole word separated by space, `-` or
+   `_`. Parenthesised suffixes such as `Sales (YTD)` are also handled.
+
+Only families with 2+ visible members are evaluated. A family **passes** when
+every member has the same non-empty `Measure Display Folder`. Family failures
+report either "missing display folder" or the set of inconsistent folder
+values.
+
+Score = `passing_families / total_families * 2`. When no families are
+detected, the full 2 points are awarded by convention.
