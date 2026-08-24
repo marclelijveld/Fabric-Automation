@@ -179,7 +179,7 @@ for r in relationships:
 
 print("Many-to-many relationships:")
 for r in relationships:
-    if r["multiplicity"].strip().lower().replace(" ", "") in {"manytomany", "many to many", "*:*"}:
+    if r["multiplicity"].strip().lower().replace(" ", "") in {"manytomany", "many to many", "*:*", "m:m", "n:n"}:
         print(f"  - {r['fromTable']}[{r['fromColumn']}] -> {r['toTable']}[{r['toColumn']}] ({r['multiplicity']})")
 
 print("Bi-directional relationships:")

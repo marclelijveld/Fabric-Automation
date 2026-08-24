@@ -65,7 +65,7 @@ Max score: 20
 | ------------------------------------------------- | ------ | --------------------------------------------------------------- |
 | Appropriate active relationships                  | 4      | % of expected relationships are set to active                   |
 | Unambiguous filter paths                          | 3      | Detect ambiguous paths                                          |
-| Correct cardinality                               | 6      | 1:N / 1:1 relationships only, bi-directionals should be avoided |
+| Correct cardinality                               | 6      | 1:1 / 1:M / M:1 relationships only, many-to-many should be avoided |
 | Avoid unnecessary bi-directional filter paths     | 4      | Avoid bi-directional filter paths                               |
 | Relationships are documented (have a description) | 3      | % Relationship metadata availability                            |
 

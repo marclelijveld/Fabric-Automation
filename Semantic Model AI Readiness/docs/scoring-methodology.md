@@ -199,7 +199,7 @@ detected, the full 2 points are awarded by convention.
 |---|---:|---|
 | Appropriate active relationships | 4 | Ratio of relationships marked Active. |
 | Unambiguous filter paths | 3 | Binary: full points when the active relationship graph has no cycles and no parallel edges; 0 otherwise. |
-| Correct cardinality | 6 | Ratio of relationships with 1:1, 1:N or N:1 cardinality. Many-to-many is penalised. |
+| Correct cardinality | 6 | Ratio of relationships with 1:1, 1:M or M:1 cardinality. Many-to-many is penalised. |
 | Avoid unnecessary bi-directional filter paths | 4 | Ratio of relationships that filter in a single direction only. |
 | Relationships are documented | 3 | Ratio of relationships with a non-empty (non-placeholder) description. |
 
@@ -225,8 +225,9 @@ predictable query behaviour.
 
 ### Cardinality
 Valid values (case- and whitespace-insensitive): `OneToOne`, `OneToMany`,
-`ManyToOne`, `1:1`, `1:N`, `N:1`. Anything else - most notably `ManyToMany` -
-counts as a failure and is listed in the rationale.
+`ManyToOne`, `1:1`, `1:M` / `1:N`, `M:1` / `N:1` (`M` and `N` mean the same
+"many" side and both are accepted). Anything else - most notably `ManyToMany`
+or `M:M` - counts as a failure and is listed in the rationale.
 
 ### Cross-filter direction
 A relationship passes when `CrossFilteringBehavior` equals `OneDirection`

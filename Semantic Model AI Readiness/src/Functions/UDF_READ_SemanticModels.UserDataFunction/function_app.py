@@ -740,10 +740,10 @@ def score_measure_organization(measures: list, maxPoints: int) -> dict:
 
 _VALID_CARDINALITIES = {
     "onetoone", "one to one", "1:1",
-    "onetomany", "one to many", "1:*", "1:n",
-    "manytoone", "many to one", "*:1", "n:1",
+    "onetomany", "one to many", "1:*", "1:n", "1:m",
+    "manytoone", "many to one", "*:1", "n:1", "m:1",
 }
-_BAD_CARDINALITIES = {"manytomany", "many to many", "*:*", "n:n"}
+_BAD_CARDINALITIES = {"manytomany", "many to many", "*:*", "n:n", "m:m"}
 
 
 class _UnionFind:
