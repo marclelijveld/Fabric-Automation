@@ -21,6 +21,7 @@
 # Measures the **Measures & Calculations** category (max 20 pts) of a Power BI
 # semantic model's AI Readiness score.
 # Tests performed:
+# 
 # | Test | Points |
 # |------|-------:|
 # | Measures clearly named | 5 |
@@ -28,6 +29,7 @@
 # | Format strings are applied | 4 |
 # | Time intelligence available | 4 |
 # | Measures are organized | 2 |
+# 
 # All scoring logic lives in the `UDF_READ_SemanticModels` user data function.
 # This notebook fetches measures via Semantic Link, calls the UDF, prints
 # results, and appends one row per test to the `AiReadiness.Scores` Delta

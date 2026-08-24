@@ -20,6 +20,7 @@
 # # NB_ANLYZ_02 - Model Structure & Organization
 # Measures the **Model Structure & Organization** category (max 20 pts) of a
 # Power BI semantic model's AI Readiness score.
+# 
 # Tests performed:
 # | Test | Points |
 # |------|-------:|
@@ -28,6 +29,7 @@
 # | Facts & dimensions can be identified | 3 |
 # | Technical tables are hidden (for AI) | 4 |
 # | Auto summarization for numeric columns is set | 4 |
+# 
 # The scoring methodology (fact/dimension classification, technical-table
 # detection, SummarizeBy rules) is documented in `docs/scoring-methodology.md`.
 
