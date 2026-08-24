@@ -734,6 +734,257 @@ def score_measure_organization(measures: list, maxPoints: int) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Category 4: Relationships & Model Logic
+# ---------------------------------------------------------------------------
+
+_VALID_CARDINALITIES = {
+    "onetoone", "one to one", "1:1",
+    "onetomany", "one to many", "1:*", "1:n",
+    "manytoone", "many to one", "*:1", "n:1",
+}
+_BAD_CARDINALITIES = {"manytomany", "many to many", "*:*", "n:n"}
+
+
+class _UnionFind:
+    def __init__(self):
+        self.parent: dict = {}
+
+    def find(self, x):
+        while self.parent.get(x, x) != x:
+            self.parent[x] = self.parent.get(self.parent[x], self.parent[x])
+            x = self.parent[x]
+        return x
+
+    def union(self, a, b) -> bool:
+        """Union a & b; return True if a cycle would be created (already same set)."""
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return True
+        self.parent[ra] = rb
+        return False
+
+
+def _summarize_relationship(r: dict) -> str:
+    return f"{r.get('fromTable','')}[{r.get('fromColumn','')}] -> {r.get('toTable','')}[{r.get('toColumn','')}]"
+
+
+@udf.function()
+def score_active_relationships(relationships: list, maxPoints: int) -> dict:
+    """Score the ratio of relationships marked as Active."""
+    rels = relationships or []
+    total = len(rels)
+    active = [r for r in rels if bool(r.get("active", False))]
+    ok = len(active)
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        rationale = (
+            "Appropriate active relationships: no relationships found in the model; "
+            f"awarded {maxPoints}/{maxPoints} points by convention."
+        )
+        score = int(maxPoints)
+        coverage = 100.0
+    else:
+        inactive_examples = [
+            _summarize_relationship(r) for r in rels if not bool(r.get("active", False))
+        ]
+        rationale = (
+            f"Appropriate active relationships: {ok}/{total} relationships are active "
+            f"({coverage}%). Awarded {score}/{maxPoints} points."
+        )
+        if inactive_examples:
+            rationale += f" Inactive: {'; '.join(inactive_examples[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_unambiguous_filter_paths(relationships: list, maxPoints: int) -> dict:
+    """Detect ambiguous filter paths among active relationships.
+
+    Ambiguity is present when either of the following occurs:
+      - Two or more active relationships connect the same pair of tables
+        (parallel edges).
+      - The active-relationship graph contains a cycle involving 3+ tables
+        (multi-hop ambiguity).
+
+    The check is all-or-nothing: full points when the active graph has no
+    ambiguity, zero otherwise.
+    """
+    rels = relationships or []
+    active = [r for r in rels if bool(r.get("active", False))]
+
+    pair_edges: dict = {}
+    for r in active:
+        a = str(r.get("fromTable") or "")
+        b = str(r.get("toTable") or "")
+        if not a or not b:
+            continue
+        key = tuple(sorted([a, b]))
+        pair_edges.setdefault(key, []).append(r)
+
+    parallel_pairs = [pair for pair, edges in pair_edges.items() if len(edges) > 1]
+
+    uf = _UnionFind()
+    cycle_edges = []
+    for pair, edges in pair_edges.items():
+        a, b = pair
+        # Only feed one edge per table pair into the union-find so parallel
+        # edges do not double-count as cycles.
+        if uf.union(a, b):
+            cycle_edges.append(pair)
+
+    ambiguous = bool(parallel_pairs) or bool(cycle_edges)
+
+    if not active:
+        return {
+            "score": int(maxPoints),
+            "coverage_pct": 100.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                "Unambiguous filter paths: no active relationships; "
+                f"awarded {maxPoints}/{maxPoints} points by convention."
+            ),
+        }
+
+    if ambiguous:
+        details = []
+        if parallel_pairs:
+            details.append(
+                "parallel edges between: "
+                + ", ".join(f"{p[0]}<->{p[1]}" for p in parallel_pairs[:3])
+            )
+        if cycle_edges:
+            details.append(
+                "cycle-creating edges at: "
+                + ", ".join(f"{p[0]}<->{p[1]}" for p in cycle_edges[:3])
+            )
+        rationale = (
+            f"Unambiguous filter paths: ambiguity detected ({'; '.join(details)}). "
+            f"Awarded 0/{maxPoints} points."
+        )
+        return {
+            "score": 0,
+            "coverage_pct": 0.0,
+            "ok": 0,
+            "total": len(active),
+            "rationale": rationale,
+        }
+
+    return {
+        "score": int(maxPoints),
+        "coverage_pct": 100.0,
+        "ok": len(active),
+        "total": len(active),
+        "rationale": (
+            f"Unambiguous filter paths: {len(active)} active relationships form a "
+            f"clean tree - no cycles or parallel edges. "
+            f"Awarded {maxPoints}/{maxPoints} points."
+        ),
+    }
+
+
+@udf.function()
+def score_relationship_cardinality(relationships: list, maxPoints: int) -> dict:
+    """Score the ratio of relationships with 1:1 / 1:N / N:1 cardinality.
+
+    Many-to-many relationships are penalised.
+    """
+    rels = relationships or []
+    total = len(rels)
+    ok = 0
+    bad = []
+    for r in rels:
+        mult = str(r.get("multiplicity") or "").strip().lower().replace(" ", "")
+        if mult in {c.replace(" ", "") for c in _VALID_CARDINALITIES}:
+            ok += 1
+        else:
+            bad.append(f"{_summarize_relationship(r)} ({r.get('multiplicity') or 'unknown'})")
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        return {
+            "score": int(maxPoints),
+            "coverage_pct": 100.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                "Correct cardinality: no relationships found in the model; "
+                f"awarded {maxPoints}/{maxPoints} points by convention."
+            ),
+        }
+
+    rationale = (
+        f"Correct cardinality: {ok}/{total} relationships use 1:1 / 1:N / N:1 "
+        f"({coverage}%). Awarded {score}/{maxPoints} points."
+    )
+    if bad:
+        rationale += f" Many-to-many / unknown: {'; '.join(bad[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_bidirectional_relationships(relationships: list, maxPoints: int) -> dict:
+    """Score the ratio of relationships that filter in a single direction only."""
+    rels = relationships or []
+    total = len(rels)
+    ok = 0
+    bidir = []
+    for r in rels:
+        cfb = str(r.get("crossFilterBehavior") or "").strip().lower().replace(" ", "")
+        if cfb in {"onedirection", "singledirection", "single"}:
+            ok += 1
+        else:
+            # Anything else (BothDirections, Automatic w/ many-to-many, etc.)
+            bidir.append(f"{_summarize_relationship(r)} ({r.get('crossFilterBehavior') or 'unknown'})")
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        return {
+            "score": int(maxPoints),
+            "coverage_pct": 100.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                "Bi-directional filters: no relationships found in the model; "
+                f"awarded {maxPoints}/{maxPoints} points by convention."
+            ),
+        }
+
+    rationale = (
+        f"Bi-directional filters: {ok}/{total} relationships use single-direction "
+        f"filtering ({coverage}%). Awarded {score}/{maxPoints} points."
+    )
+    if bidir:
+        rationale += f" Bi-directional: {'; '.join(bidir[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
 @udf.function()
 def score_auto_summarization(columns: list, maxPoints: int) -> dict:
     """Score auto-summarization on numeric columns that participate in the model.

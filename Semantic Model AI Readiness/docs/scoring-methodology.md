@@ -192,3 +192,45 @@ values.
 
 Score = `passing_families / total_families * 2`. When no families are
 detected, the full 2 points are awarded by convention.
+
+## Category 4 - Relationships & Model Logic
+
+| Test | Max | Rule |
+|---|---:|---|
+| Appropriate active relationships | 4 | Ratio of relationships marked Active. |
+| Unambiguous filter paths | 3 | Binary: full points when the active relationship graph has no cycles and no parallel edges; 0 otherwise. |
+| Correct cardinality | 6 | Ratio of relationships with 1:1, 1:N or N:1 cardinality. Many-to-many is penalised. |
+| Avoid unnecessary bi-directional filter paths | 4 | Ratio of relationships that filter in a single direction only. |
+| Relationships are documented | 3 | Ratio of relationships with a non-empty (non-placeholder) description. |
+
+Structural metadata comes from `fabric.list_relationships(dataset, workspace)`.
+Relationship descriptions are read via TOM (`connect_semantic_model`) because
+`list_relationships` does not surface the `Description` field. Descriptions are
+matched to the Semantic Link rows on the `(FromTable, FromColumn, ToTable, ToColumn)`
+tuple.
+
+### Unambiguous filter paths
+Only the **active** relationships are considered. Two ambiguity signals are checked:
+
+- **Parallel edges** - two or more active relationships between the same pair
+  of tables (regardless of which columns are involved).
+- **Cycles** - the undirected graph of active relationships forms a cycle
+  covering 3 or more tables. Detected with a union-find: when an edge's two
+  endpoints are already in the same connected component, that edge closes a
+  cycle.
+
+The check is binary because Power BI's semantics treat any ambiguity as a
+disqualifier for auto-filter propagation - even one ambiguous pair breaks
+predictable query behaviour.
+
+### Cardinality
+Valid values (case- and whitespace-insensitive): `OneToOne`, `OneToMany`,
+`ManyToOne`, `1:1`, `1:N`, `N:1`. Anything else - most notably `ManyToMany` -
+counts as a failure and is listed in the rationale.
+
+### Cross-filter direction
+A relationship passes when `CrossFilteringBehavior` equals `OneDirection`
+(also accepted: `SingleDirection`, `Single`). `BothDirections`, `Automatic`
+with many-to-many, or unknown values are penalised because bi-directional
+filtering makes the direction of filter propagation ambiguous and is a common
+source of incorrect answers by AI/BI clients.
