@@ -235,3 +235,63 @@ A relationship passes when `CrossFilteringBehavior` equals `OneDirection`
 with many-to-many, or unknown values are penalised because bi-directional
 filtering makes the direction of filter propagation ambiguous and is a common
 source of incorrect answers by AI/BI clients.
+
+## Category 5 - Business Semantics & Context
+
+| Test | Max | Rule |
+|---|---:|---|
+| AI Instructions / Notes for AI | 5 | Proxy check (see the note below). Awards partial points when the combined business-context text is non-empty and full points when it is >= 20 characters. |
+| Calculation groups used | 2 | Binary. Pass when the model has at least one calculation group. |
+| Business context modelled in hierarchies | 1 | Binary. Pass when the model has at least one hierarchy. |
+| Units, currency & formatting defined | 2 | Combined ratio: visible measures + visible numeric columns that have a non-empty `Format String`. |
+
+### AI Instructions - open investigation
+The definitive storage surface for Power BI's "AI Instructions" / "Notes for
+AI" text is **still being investigated**. The current implementation is a
+**proxy** that harvests every signal in the model that is plausibly used to
+convey business context to an AI consumer:
+
+1. **Model-level `Model.Description`** - the "Model description" field that
+   authoring tools (Power BI Desktop, Tabular Editor, Fabric portal) expose.
+2. **Model-level annotations** whose name (after lower-casing and stripping
+   `_` / whitespace) contains one of the hints: `ai`, `instruction`,
+   `modeldescription`, `aidescription`, `notes`. This picks up the current
+   Fabric annotations (e.g. `PBI_ModelAIDescription`, `AIInstructions`) as
+   well as older custom conventions.
+3. **Item-level descriptions** on tables, columns and measures - these carry
+   business context that a Copilot-style AI can and will read alongside any
+   dedicated AI instructions surface, so they are absolutely relevant here.
+
+All accepted snippets are concatenated. Two signals contribute to the score:
+
+- Signal A: at least one non-empty, non-placeholder snippet.
+- Signal B: the concatenated text is at least 20 characters long.
+
+Each signal contributes an equal share of the 5 points (so partial credit is
+possible when only a few descriptions are set).
+
+Once the true "AI Instructions" surface is confirmed - most likely accessible
+through the **Power BI Project (PBIP)** file structure (`definition.pbism` /
+model definition files) - the UDF and NB05 fetch cell will be updated to read
+that surface directly and the score will move from proxy to authoritative.
+
+### Calculation groups
+Detection is a plain scan for tables where `Table.CalculationGroup` is set.
+The count and per-group calculation-item counts are printed for transparency
+but only presence (>= 1) drives the score.
+
+### Hierarchies
+The check counts any hierarchy on any table, regardless of visibility. The
+diagnostic output lists `Table.HierarchyName (N levels)` for each hierarchy.
+
+### Units, currency & formatting
+Same "Format String is non-empty" rule as Category 3's format-string test,
+but the denominator is broadened:
+
+- All **visible** measures.
+- All **visible numeric columns** (`Whole Number`, `Decimal Number`,
+  `Currency` and their DAX aliases).
+
+Score = `(measures_with_fmt + columns_with_fmt) / (visible_measures + visible_numeric_columns) * 2`.
+The rationale splits the numerator per source so it is clear whether
+measures, columns or both are dragging the score.

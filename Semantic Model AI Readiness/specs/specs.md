@@ -76,10 +76,20 @@ Max score: 10
 
 | What                                     | Points | How to measure                                                                                  |
 | ---------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
-| AI Instructions / Notes for AI           | 5      | Context and business specifics are described in the AI Instructions                             |
+| AI Instructions / Notes for AI | 5      | Context and business specifics are described in the AI Instructions. **Note:** the exact storage location for Power BI "AI Instructions" is still under investigation - see the note below. |
 | Calculation groups used                  | 2      | Repeated (time intelligence / currency / … ) calculation patterns covered in Calculation groups |
 | Business context modelled in hierarchies | 1      | Logical drill-down structures                                                                   |
 | Units, currency & formatting defined     | 2      | % / currency / quantity / decimal places / date formatting set for measures and numeric columns |
+
+> **Note on "AI Instructions / Notes for AI":** the exact storage location in
+> a semantic model for the Power BI "AI Instructions" / "Notes for AI" text
+> still needs further investigation. The current implementation uses the
+> model-level `Description` and any model-level annotations whose name hints
+> at AI instructions as a **proxy**, in addition to per-object (table /
+> column / measure) descriptions which also convey business context.
+> The definitive source is likely reachable through the Power BI Project
+> (PBIP) file structure; once confirmed the UDF and notebook should be
+> updated to read that surface directly.
 
 
 ### 6. Quality & Trust
@@ -94,6 +104,7 @@ Max score: 10
 | Security roles configured                                       | 2      | Security roles created and have expressions added              |
 | Security roles documented                                       | 1      | Descriptions on roles added                                    |
 
+For rule one, the semantic link labs function ```row_count()``` could come in helpful. The [row_count function](https://semantic-link-labs.readthedocs.io/en/latest/sempy_labs.tom.html#sempy_labs.tom.TOMWrapper.row_count) requires a table name as input. So it should loop through all tables. This should be combined with the [cardinality function](https://semantic-link-labs.readthedocs.io/en/latest/sempy_labs.tom.html#sempy_labs.tom.TOMWrapper.cardinality) to check the number of unique values in a column ```cardinality()``` and requires a column as input so should also create a loop. 
 
 ## Technical requirements
 The solution design should run as a Microsoft Fabric solution, where Fabric Notebooks are used to analyze the semantic models. Each category described in the functional requirements should be a separate notebook so they can also run independently. As I expect several pieces of code to be repeated over these notebooks, I want that logic to land in a Fabric User Data Function. One User Data Function item is fine, as long as different functions are defined in here. 

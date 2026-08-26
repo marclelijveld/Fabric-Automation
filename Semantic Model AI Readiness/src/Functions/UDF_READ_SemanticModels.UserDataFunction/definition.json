@@ -14,6 +14,11 @@
       "isPublicEndpointEnabled": true
     },
     {
+      "name": "score_ai_instructions",
+      "description": "Score whether the semantic model contains meaningful AI instructions / Notes for AI text.",
+      "isPublicEndpointEnabled": true
+    },
+    {
       "name": "score_auto_summarization",
       "description": "Score whether every column has a sensible SummarizeBy configuration.",
       "isPublicEndpointEnabled": true
@@ -86,6 +91,11 @@
     {
       "name": "score_unambiguous_filter_paths",
       "description": "Detect ambiguous filter paths in the active relationship graph (parallel edges and cycles).",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_units_and_formatting",
+      "description": "Score the combined format-string coverage across visible measures and visible numeric columns.",
       "isPublicEndpointEnabled": true
     }
   ],

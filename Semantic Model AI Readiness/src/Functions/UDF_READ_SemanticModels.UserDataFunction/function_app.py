@@ -985,6 +985,129 @@ def score_bidirectional_relationships(relationships: list, maxPoints: int) -> di
     }
 
 
+# ---------------------------------------------------------------------------
+# Category 5: Business Semantics & Context
+# ---------------------------------------------------------------------------
+
+_AI_INSTRUCTIONS_MIN_LEN = 20
+
+
+@udf.function()
+def score_ai_instructions(instructionsText: str, maxPoints: int) -> dict:
+    """Score whether the model contains meaningful AI instructions / Notes for AI.
+
+    The caller passes a single ``instructionsText`` string containing every
+    business-context signal harvested from the model, concatenated together:
+
+    - The model-level ``Model.Description``.
+    - Any model-level annotation whose name looks AI-related (e.g.
+      ``PBI_ModelAIDescription``, ``AIInstructions``).
+    - Item-level descriptions on tables, columns and measures - these are
+      also considered relevant context for AI consumers.
+
+    NOTE: the definitive storage surface for Power BI's "AI Instructions" /
+    "Notes for AI" is still under investigation (see ``specs/specs.md``); this
+    check is therefore a **proxy** rather than the final rule.
+
+    Scoring is proportional. Each of the following signals contributes an
+    equal share of ``maxPoints``:
+      1. Non-empty model description or AI annotation.
+      2. Sufficient volume of text (>= 20 chars combined across all sources).
+    """
+    text = (instructionsText or "").strip()
+    has_any = _is_non_empty(text)
+    has_volume = has_any and len(text) >= _AI_INSTRUCTIONS_MIN_LEN
+
+    signals = int(has_any) + int(has_volume)
+    coverage = _pct(signals, 2)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if signals == 0:
+        rationale = (
+            "AI Instructions: no meaningful business context found on the model "
+            f"(checked Model.Description, AI-related annotations and item-level "
+            f"descriptions). Awarded 0/{maxPoints} points. NOTE: the exact storage "
+            "location for Power BI 'AI Instructions' is still under investigation - "
+            "this test is currently a proxy based on descriptions and annotations."
+        )
+    else:
+        preview = text[:120].replace("\n", " ")
+        rationale = (
+            f"AI Instructions: found {len(text)} characters of business context "
+            f"across model description, annotations and item descriptions. "
+            f"Awarded {score}/{maxPoints} points. Preview: \"{preview}\". "
+            "NOTE: this test is currently a proxy - the definitive Power BI "
+            "'AI Instructions' surface still needs investigation."
+        )
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": signals,
+        "total": 2,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_units_and_formatting(measures: list, columns: list, maxPoints: int) -> dict:
+    """Score the combined format-string coverage over visible measures and
+    visible numeric columns.
+
+    A measure passes when its ``formatString`` is non-empty. A numeric column
+    passes when its ``formatString`` is non-empty (data type must be one of
+    the numeric types defined in ``_NUMERIC_DATA_TYPES``).
+    """
+    ms = [m for m in (measures or []) if not bool(m.get("hidden", False))]
+    cs = [c for c in (columns or []) if not bool(c.get("hidden", False))
+          and str(c.get("dataType") or "").strip().lower() in _NUMERIC_DATA_TYPES]
+
+    total = len(ms) + len(cs)
+    ok_measures = sum(1 for m in ms if str(m.get("formatString") or "").strip())
+    ok_columns = sum(1 for c in cs if str(c.get("formatString") or "").strip())
+    ok = ok_measures + ok_columns
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        return {
+            "score": int(maxPoints),
+            "coverage_pct": 100.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                "Units & formatting: no visible measures or numeric columns; "
+                f"awarded {maxPoints}/{maxPoints} points by convention."
+            ),
+        }
+
+    missing_measures = [
+        f"{m.get('table','')}[{m.get('name','')}]"
+        for m in ms if not str(m.get("formatString") or "").strip()
+    ]
+    missing_columns = [
+        f"{c.get('table','')}[{c.get('name','')}]"
+        for c in cs if not str(c.get("formatString") or "").strip()
+    ]
+
+    rationale = (
+        f"Units & formatting: {ok}/{total} objects have a Format String "
+        f"({ok_measures}/{len(ms)} measures, {ok_columns}/{len(cs)} numeric columns; "
+        f"{coverage}%). Awarded {score}/{maxPoints} points."
+    )
+    if missing_measures:
+        rationale += f" Missing on measures: {'; '.join(missing_measures[:5])}."
+    if missing_columns:
+        rationale += f" Missing on columns: {'; '.join(missing_columns[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
 @udf.function()
 def score_auto_summarization(columns: list, maxPoints: int) -> dict:
     """Score auto-summarization on numeric columns that participate in the model.
