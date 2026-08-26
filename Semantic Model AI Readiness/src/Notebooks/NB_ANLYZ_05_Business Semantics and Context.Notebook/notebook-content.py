@@ -371,4 +371,3 @@ print(f"Wrote {df.count()} rows to {DEST_SCHEMA}.{DEST_TABLE}.")
 # META   "language": "python",
 # META   "language_group": "synapse_pyspark"
 # META }
-
