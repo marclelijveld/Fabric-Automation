@@ -440,10 +440,34 @@ def score_facts_dims_identifiable(
     }
 
 
+def _is_technical_table(t: dict) -> bool:
+    """Return True when the table looks technical.
+
+    A table is technical when either its name matches a technical pattern
+    (see ``_TECHNICAL_TABLE_PATTERNS``), OR the caller flagged it as one of:
+    an auto date table, an aggregation table, or a field parameter table.
+    These flags are surfaced by the sempy_labs TOM wrapper helpers
+    ``is_auto_date_table()``, ``is_agg_table()`` and ``is_field_parameter()``.
+    """
+    if not isinstance(t, dict):
+        return False
+    if _is_technical_table_name(t.get("name", "")):
+        return True
+    for flag in ("isAutoDateTable", "isAggTable", "isFieldParameter"):
+        if bool(t.get(flag, False)):
+            return True
+    return False
+
+
 @udf.function()
 def score_technical_tables_hidden(tables: list, maxPoints: int) -> dict:
-    """Score whether tables that look technical/helper are hidden from consumers."""
-    technical = [t for t in (tables or []) if _is_technical_table_name(t.get("name", ""))]
+    """Score whether tables that look technical/helper are hidden from consumers.
+
+    A table qualifies as technical when either its name matches a technical
+    pattern OR the caller flagged it as an auto date table, aggregation table
+    or field-parameter table (via the sempy_labs TOM helpers).
+    """
+    technical = [t for t in (tables or []) if _is_technical_table(t)]
     total_tech = len(technical)
     hidden_tech = sum(1 for t in technical if bool(t.get("hidden", False)))
     visible_tech_names = [t.get("name") for t in technical if not bool(t.get("hidden", False))]
@@ -1225,17 +1249,27 @@ def score_column_data_quality(columns: list, maxPoints: int) -> dict:
 
     Each candidate column carries:
       - ``table``, ``name``
-      - ``hidden``      - bool
-      - ``rowCount``    - int (row count of the parent table)
-      - ``cardinality`` - int (distinct value count)
+      - ``hidden``       - bool
+      - ``rowCount``     - int (row count of the parent table)
+      - ``cardinality``  - int (distinct value count)
+      - ``isDirectLake`` - bool (parent table is a Direct Lake table)
 
     A column **fails** when it is not hidden and either:
       - its parent table has ``rowCount == 0`` (no data), or
       - the column ``cardinality <= 1`` (all values identical, including all-null).
 
+    **Direct Lake limitation.** For Direct Lake tables no data physically
+    resides in the semantic model - Vertipaq statistics such as row count and
+    column cardinality are not reliable indicators of data quality. Columns
+    belonging to a Direct Lake table are therefore reported separately and
+    excluded from both numerator and denominator so they neither pass nor fail
+    this test. The rationale surfaces how many columns were skipped.
+
     System columns (``RowNumber*``) should be excluded upstream by the caller.
     """
-    cols = [c for c in (columns or []) if not bool(c.get("hidden", False))]
+    all_visible = [c for c in (columns or []) if not bool(c.get("hidden", False))]
+    skipped_dl = [c for c in all_visible if bool(c.get("isDirectLake", False))]
+    cols = [c for c in all_visible if not bool(c.get("isDirectLake", False))]
     total = len(cols)
     ok = 0
     issues = []
@@ -1254,12 +1288,21 @@ def score_column_data_quality(columns: list, maxPoints: int) -> dict:
 
     coverage = _pct(ok, total)
     score = _points_from_pct(coverage, maxPoints)
+    skipped_note = ""
+    if skipped_dl:
+        dl_tables = sorted({c.get("table", "") for c in skipped_dl})
+        skipped_note = (
+            f" Skipped {len(skipped_dl)} column(s) from {len(dl_tables)} "
+            f"Direct Lake table(s) (row count and cardinality are not reliable "
+            f"indicators for Direct Lake - current limitation): "
+            f"{', '.join(dl_tables[:5])}."
+        )
 
     if total == 0:
         rationale = (
-            "Column data quality: no visible columns to evaluate; "
+            "Column data quality: no non-Direct-Lake visible columns to evaluate; "
             f"awarded {maxPoints}/{maxPoints} points by convention."
-        )
+        ) + skipped_note
         score = int(maxPoints)
         coverage = 100.0
     else:
@@ -1270,11 +1313,13 @@ def score_column_data_quality(columns: list, maxPoints: int) -> dict:
         )
         if issues:
             rationale += f" Issues: {'; '.join(issues[:5])}."
+        rationale += skipped_note
     return {
         "score": score,
         "coverage_pct": coverage,
         "ok": ok,
         "total": total,
+        "skipped_direct_lake": len(skipped_dl),
         "rationale": rationale,
     }
 

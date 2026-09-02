@@ -69,9 +69,9 @@ the score for transparency.
 | Test | Max | Rule |
 |---|---:|---|
 | Star schema characteristics | 5 | Ratio of tables cleanly classified as fact or dimension. |
-| Date Table is flagged as such | 4 | Boolean: at least one table has `DataCategory == "Time"` and a key column of type `DateTime`. |
+| Date Table is flagged as such | 4 | Boolean: `tom.has_date_table()` is true AND at least one date table is not an auto-generated date table (`is_auto_date_table` = false). |
 | Facts & dimensions can be identified | 3 | Ratio of tables that are either classified fact/dim OR hidden. |
-| Technical tables are hidden (for AI) | 4 | Ratio of technical-named tables that are hidden. |
+| Technical tables are hidden (for AI) | 4 | Ratio of technical tables that are hidden. A table is technical when its name matches a technical pattern OR `tom.is_auto_date_table()`, `tom.is_agg_table()`, or `tom.is_field_parameter()` returns true. |
 | Auto summarization for numeric columns is set | 4 | Ratio of numeric columns used in relationships or referenced by measures that have `SummarizeBy = None`. |
 
 ### Fact / dimension classification
@@ -93,28 +93,33 @@ Facts & dimensions identifiable score:
 `(facts + dims + hidden_tables) / total_tables * 3`.
 Hidden tables that are also classified as fact/dim are counted only once.
 
-### Date table detection
-The check uses `fabric.list_tables(dataset)` and passes when **any** table has
-`Data Category == "Time"`. This is the property Power BI sets when the modeler
-uses "Mark as date table" (or when the table was authored as a date table in
-Tabular Editor / TMDL).
-
-All tables with `Data Category == "Time"` are still surfaced by the date-table
-test above; the auto-summarization test no longer treats them specially — see
-the next section.
-
 ### Technical / helper table detection
-A table name is considered technical when it matches any of:
-- Starts with `_` (e.g. `_Measures`).
-- Equals one of the reserved helper names (case-insensitive): `Measures`,
-  `KPI`, `Calculations`, `Calc`, `Parameters`, `Helper`, `Helpers`, `DAX`,
-  `Aux`, `Temp`, `Tmp`, `Stg`, `Staging`, `Bridge`, `Utility`, `Utilities`,
-  `Config`, `Constants`.
-- Starts with a legacy modelling prefix followed by `_` or whitespace:
-  `dim_`, `fact_`, `tbl_`, `vw_`, `stg_`, `tmp_`, `aux_`.
+A table is considered technical when **any** of these apply:
+
+- Its name matches one of the built-in patterns:
+  - Starts with `_` (e.g. `_Measures`).
+  - Equals one of the reserved helper names (case-insensitive): `Measures`,
+    `KPI`, `Calculations`, `Calc`, `Parameters`, `Helper`, `Helpers`, `DAX`,
+    `Aux`, `Temp`, `Tmp`, `Stg`, `Staging`, `Bridge`, `Utility`, `Utilities`,
+    `Config`, `Constants`.
+  - Starts with a legacy modelling prefix followed by `_` or whitespace:
+    `dim_`, `fact_`, `tbl_`, `vw_`, `stg_`, `tmp_`, `aux_`.
+- The sempy_labs TOM helper `is_auto_date_table()` returns `True` (Power BI
+  auto-generated hidden date tables).
+- The sempy_labs TOM helper `is_agg_table()` returns `True` (aggregation
+  helper tables).
+- The sempy_labs TOM helper `is_field_parameter()` returns `True`
+  (field-parameter helper tables authored via the `NAMEOF` DAX pattern).
 
 Score = `hidden_technical / total_technical * 4`. When no technical tables are
 detected, the full 4 points are awarded.
+
+### Date table detection
+The check uses `tom.has_date_table()` combined with `tom.is_auto_date_table()`
+per table. Points are awarded only when the model has at least one date table
+that is **not** one of the auto-generated hidden date tables Power BI creates
+implicitly. Auto date tables alone never earn the point (see
+`specs/Simplifications.md`).
 
 ### Auto summarization (`SummarizeBy`)
 Scoped to **numeric columns that participate in the model** — the setting only
@@ -309,22 +314,37 @@ measures, columns or both are dragging the score.
 ### Column data quality
 Values are collected via the Semantic Link Labs TOM wrapper:
 
+- `tom.is_direct_lake(table=t)` is called **once per table** to determine
+  whether the table is a Direct Lake table.
+- `tom.total_size(object=t)` is called **once per table** and printed as a
+  diagnostic (largest tables first) so relative table footprints can be
+  compared. It does not affect the score.
 - `tom.row_count(object=table)` is called **once per table** (skipping
-  calculation-group tables, which do not hold user data).
-- `tom.cardinality(column=column)` is called **once per column**. When the
-  parent table is already known to be empty (`row_count == 0`) the cardinality
-  call is skipped as an optimisation - the column fails on the row-count rule
-  regardless.
+  calculation-group tables and Direct Lake tables, which do not hold user
+  data in the model).
+- `tom.cardinality(column=column)` is called **once per column**. The call
+  is skipped when the parent table is empty (`row_count == 0`) or when the
+  parent table is Direct Lake - in both cases the value would be misleading.
 
 System columns (any name starting with `RowNumber`) are excluded, and hidden
 columns are excluded from the denominator - only visible, AI-facing columns
-contribute to the score. A visible column fails when either:
+contribute to the score.
+
+**Direct Lake limitation.** Because Direct Lake tables load data on demand
+from OneLake rather than materialising it into the Vertipaq engine, row
+count and cardinality are not reliable data-quality signals. Columns
+belonging to Direct Lake tables are therefore excluded from both numerator
+and denominator - they neither pass nor fail this test. The number of
+skipped columns and the affected tables are reported in the rationale. This
+is a current limitation of the AI-readiness score.
+
+A visible, non-Direct-Lake column fails when either:
 
 - its parent table has `rowCount == 0`, or
 - the column `cardinality <= 1` (all values identical, including all-null).
 
-Score = `passing_columns / total_visible_columns * 3`. When no visible columns
-exist, the full 3 points are awarded by convention.
+Score = `passing_columns / total_visible_non_direct_lake_columns * 3`. When
+no eligible columns exist, the full 3 points are awarded by convention.
 
 ### Datatype consistency on relationships
 The check compares the `DataType` of the From column and the To column of

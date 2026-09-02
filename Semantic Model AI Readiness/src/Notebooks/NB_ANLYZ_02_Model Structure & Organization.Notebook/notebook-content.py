@@ -167,19 +167,60 @@ tables = [
 
 # Set of tables flagged as date tables (Data Category == 'Time').
 date_table_names = {t["name"] for t in tables if t["dataCategory"].strip().lower() == "time"}
-date_table_flagged = len(date_table_names) > 0
 
-# Fetch columns via TOM (mirrors NB01's approach).
+# Fetch columns via TOM (mirrors NB01's approach). In the same TOM session we
+# also enrich each table with:
+#   - isAutoDateTable   (tom.is_auto_date_table)  - Power BI auto-generated
+#                       hidden date tables that should not count as a
+#                       "flagged date table" and should be hidden from AI.
+#   - isAggTable        (tom.is_agg_table)        - aggregation helper tables.
+#   - isFieldParameter  (tom.is_field_parameter)  - field-parameter helper
+#                       tables (`NAMEOF` DAX pattern).
+# All three are treated as "technical" tables by the UDF and therefore should
+# be hidden.
+# The date-table check uses `tom.has_date_table()` and only awards points when
+# at least one non-auto date table exists.
 columns = []
+table_flags = {}   # name -> (isAutoDateTable, isAggTable, isFieldParameter)
+model_has_date_table = False
+non_auto_date_tables = []
 with connect_semantic_model(
     dataset=semantic_model_id, workspace=workspace_id, readonly=True
 ) as tom:
+    try:
+        model_has_date_table = bool(tom.has_date_table())
+    except Exception as ex:
+        print(f"  ! has_date_table failed: {ex}")
+
     for t in tom.model.Tables:
+        tbl = str(t.Name)
+        try:
+            is_auto = bool(tom.is_auto_date_table(table=t))
+        except Exception as ex:
+            print(f"  ! is_auto_date_table failed for '{tbl}': {ex}")
+            is_auto = False
+        try:
+            is_agg = bool(tom.is_agg_table(table=t))
+        except Exception as ex:
+            print(f"  ! is_agg_table failed for '{tbl}': {ex}")
+            is_agg = False
+        try:
+            is_fp = bool(tom.is_field_parameter(table=t))
+        except Exception as ex:
+            print(f"  ! is_field_parameter failed for '{tbl}': {ex}")
+            is_fp = False
+        table_flags[tbl] = (is_auto, is_agg, is_fp)
+
+        # A "flagged date table" is any table Power BI treats as a date table
+        # (Data Category == "Time") that is not one of the auto-generated
+        # hidden date tables.
+        if tbl in date_table_names and not is_auto:
+            non_auto_date_tables.append(tbl)
+
         for c in t.Columns:
             col_name = str(c.Name)
             if col_name.startswith("RowNumber"):
                 continue
-            tbl = str(t.Name)
             columns.append({
                 "name": col_name,
                 "table": tbl,
@@ -189,6 +230,18 @@ with connect_semantic_model(
                 "summarizeBy": str(c.SummarizeBy),
                 "inDateTable": tbl in date_table_names,
             })
+
+# Attach the three technical-table flags to the `tables` list so the UDF can
+# treat auto date / aggregation / field-parameter tables as technical.
+for tbl in tables:
+    is_auto, is_agg, is_fp = table_flags.get(tbl["name"], (False, False, False))
+    tbl["isAutoDateTable"] = is_auto
+    tbl["isAggTable"] = is_agg
+    tbl["isFieldParameter"] = is_fp
+
+# Date-table test: must have at least one date table that is *not* an
+# auto-generated one (per specs/Simplifications.md).
+date_table_flagged = model_has_date_table and len(non_auto_date_tables) > 0
 
 # Normalize relationships.
 r_from_t = _col(relationships_df, "From Table", "FromTable")
@@ -292,12 +345,32 @@ if _in_scope_bad:
 
 # CELL ********************
 
-# Date-table flag is derived directly from the Data Category column above -
-# no TOM connection needed.
+# Date-table diagnostic - uses tom.has_date_table() combined with
+# tom.is_auto_date_table() so auto-generated hidden date tables do not earn
+# points on their own (see specs/Simplifications.md).
 if date_table_flagged:
-    print(f"Date table flagged as such: True (tables: {sorted(date_table_names)})")
+    print(f"Date table flagged as such: True (non-auto date tables: "
+          f"{sorted(non_auto_date_tables)})")
 else:
-    print("Date table flagged as such: False (no table has Data Category == 'Time')")
+    print(
+        "Date table flagged as such: False "
+        f"(has_date_table={model_has_date_table}, "
+        f"non-auto date tables={sorted(non_auto_date_tables)})"
+    )
+
+# Surface the technical-table flags collected from TOM helpers.
+_flagged_tech = [
+    (n, flags) for n, flags in table_flags.items() if any(flags)
+]
+if _flagged_tech:
+    print("Tables flagged as technical by TOM helpers "
+          "(auto date / aggregation / field parameter):")
+    for n, (is_auto, is_agg, is_fp) in _flagged_tech:
+        parts = []
+        if is_auto: parts.append("auto date")
+        if is_agg:  parts.append("aggregation")
+        if is_fp:   parts.append("field parameter")
+        print(f"  - {n}: {', '.join(parts)}")
 
 # METADATA ********************
 

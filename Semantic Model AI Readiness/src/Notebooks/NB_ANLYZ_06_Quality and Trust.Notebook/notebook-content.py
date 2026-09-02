@@ -37,6 +37,14 @@
 # + `fabric.list_relationships`, calls the UDF, prints results, and appends
 # one row per test to the `AiReadiness.Scores` Delta table in the
 # `LH_STORE_AIReadinessScores` lakehouse.
+#
+# **Direct Lake limitation.** For tables detected via
+# `TOMWrapper.is_direct_lake()` no data physically resides in the semantic
+# model, so `row_count()` and `cardinality()` are not reliable indicators of
+# data quality. Columns from Direct Lake tables are excluded from the
+# "no columns with solely the same value or empty" test. As a diagnostic
+# aid, `TOMWrapper.total_size()` is also collected per table so relative
+# table sizes can be compared in the notebook log.
 
 # CELL ********************
 
@@ -117,6 +125,8 @@ udf_client = notebookutils.udf.getFunctions(udf_item_name, udf_workspace_id)
 column_quality_items = []
 role_items = []
 column_dtype_lookup = {}  # (table, column) -> dataType string
+direct_lake_tables = set()
+table_total_sizes = {}  # table name -> total_size (bytes)
 
 with connect_semantic_model(
     dataset=semantic_model_id, workspace=workspace_id, readonly=True
@@ -130,6 +140,11 @@ with connect_semantic_model(
             column_dtype_lookup[(str(t.Name), col_name)] = str(c.DataType)
 
     # --- Row count per table + cardinality per column (for data-quality test) ---
+    # Direct Lake tables are detected via `tom.is_direct_lake(table=t)` - for
+    # those tables the data does not physically reside in the semantic model,
+    # so Vertipaq row count and cardinality are not reliable indicators of
+    # data quality. We still gather total_size for a diagnostic comparison,
+    # but the columns are flagged and excluded from the data-quality score.
     for t in tom.model.Tables:
         tname = str(t.Name)
         # Skip calculation groups: they don't hold user data.
@@ -137,19 +152,38 @@ with connect_semantic_model(
             continue
 
         try:
-            row_count = int(tom.row_count(object=t))
+            is_dl = bool(tom.is_direct_lake(table=t))
         except Exception as ex:
-            print(f"  ! row_count failed for table '{tname}': {ex}")
-            row_count = 0
+            print(f"  ! is_direct_lake failed for table '{tname}': {ex}")
+            is_dl = False
+        if is_dl:
+            direct_lake_tables.add(tname)
+
+        try:
+            table_total_sizes[tname] = int(tom.total_size(object=t))
+        except Exception as ex:
+            print(f"  ! total_size failed for table '{tname}': {ex}")
+            table_total_sizes[tname] = None
+
+        if is_dl:
+            row_count = 0  # not evaluated - flagged via isDirectLake
+        else:
+            try:
+                row_count = int(tom.row_count(object=t))
+            except Exception as ex:
+                print(f"  ! row_count failed for table '{tname}': {ex}")
+                row_count = 0
 
         for c in t.Columns:
             col_name = str(c.Name)
             if col_name.startswith("RowNumber"):
                 continue
             hidden = bool(c.IsHidden) or bool(t.IsHidden)
-            # Skip cardinality call when the table is empty - the column
-            # already fails on rowCount and the call would be pointless.
-            if row_count == 0:
+            if is_dl:
+                # Direct Lake: don't call cardinality; flag the column.
+                card = 0
+            elif row_count == 0:
+                # Empty table: skip the pointless cardinality call.
                 card = 0
             else:
                 try:
@@ -163,6 +197,7 @@ with connect_semantic_model(
                 "hidden": hidden,
                 "rowCount": row_count,
                 "cardinality": card,
+                "isDirectLake": is_dl,
             })
 
     # --- Security roles ---
@@ -245,9 +280,24 @@ print(f"Fetched {len(measures)} measures.")
 # CELL ********************
 
 # Diagnostic output - surface problems before the score is computed.
-print("Empty tables or single-value columns (visible):")
+if direct_lake_tables:
+    print(f"Direct Lake tables (excluded from data-quality check - current "
+          f"limitation): {sorted(direct_lake_tables)}")
+
+# Total-size comparison across tables (bytes reported by tom.total_size).
+sized = [(n, s) for n, s in table_total_sizes.items() if isinstance(s, int)]
+if sized:
+    sized.sort(key=lambda x: x[1], reverse=True)
+    total_bytes = sum(s for _, s in sized) or 1
+    print("Table total_size (bytes) - largest first:")
+    for name, size in sized[:10]:
+        pct = size / total_bytes * 100
+        marker = " [DirectLake]" if name in direct_lake_tables else ""
+        print(f"  - {name}: {size:,} bytes ({pct:.1f}% of model){marker}")
+
+print("Empty tables or single-value columns (visible, non-Direct-Lake):")
 for c in column_quality_items:
-    if c["hidden"]:
+    if c["hidden"] or c.get("isDirectLake"):
         continue
     if c["rowCount"] == 0:
         print(f"  - {c['table']}[{c['name']}] - table is empty")
