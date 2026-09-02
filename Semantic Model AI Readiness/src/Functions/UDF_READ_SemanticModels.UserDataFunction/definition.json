@@ -39,8 +39,18 @@
       "isPublicEndpointEnabled": true
     },
     {
+      "name": "score_column_data_quality",
+      "description": "",
+      "isPublicEndpointEnabled": true
+    },
+    {
       "name": "score_description_coverage",
       "description": "Score description coverage for a list of model objects (tables, columns, or measures).",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_duplicate_measures",
+      "description": "",
       "isPublicEndpointEnabled": true
     },
     {
@@ -66,6 +76,21 @@
     {
       "name": "score_relationship_cardinality",
       "description": "Score the ratio of relationships that use 1:1 / 1:N / N:1 cardinality (penalizes many-to-many).",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_relationship_datatype_consistency",
+      "description": "",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_security_roles_configured",
+      "description": "",
+      "isPublicEndpointEnabled": true
+    },
+    {
+      "name": "score_security_roles_documented",
+      "description": "",
       "isPublicEndpointEnabled": true
     },
     {
