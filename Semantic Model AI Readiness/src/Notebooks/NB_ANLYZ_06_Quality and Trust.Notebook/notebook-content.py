@@ -18,28 +18,31 @@
 # MARKDOWN ********************
 
 # # NB_ANLYZ_06 - Quality & Trust
-# # Measures the **Quality & Trust** category (max 10 pts) of a Power BI
+# Measures the **Quality & Trust** category (max 10 pts) of a Power BI
 # semantic model's AI Readiness score.
-# # Tests performed:
-# # | Test | Points |
+# Tests performed:
+# | Test | Points |
 # |------|-------:|
 # | No columns with solely the same value or empty | 3 |
 # | Data types are set consistently on both ends of the relationship | 2 |
 # | No duplicate measures | 2 |
 # | Security roles configured | 2 |
 # | Security roles documented | 1 |
-# # All scoring logic lives in the `UDF_READ_SemanticModels` user data function.
+# 
+# All scoring logic lives in the `UDF_READ_SemanticModels` user data function.
 # This notebook harvests the required metadata from TOM + `fabric.list_measures`
 # + `fabric.list_relationships`, calls the UDF, prints results, and appends
 # one row per test to the `AiReadiness.Scores` Delta table in the
 # `LH_STORE_AIReadinessScores` lakehouse.
-# # **Direct Lake limitation.** For tables detected via
+# 
+# **Direct Lake limitation.** For tables detected via
 # `TOMWrapper.is_direct_lake()` no data physically resides in the semantic
 # model, so `row_count()` and `cardinality()` are not reliable indicators of
 # data quality. Columns from Direct Lake tables are excluded from the
 # "no columns with solely the same value or empty" test. As a diagnostic
 # aid, `TOMWrapper.total_size()` is also collected per table so relative
 # table sizes can be compared in the notebook log.
+
 
 # CELL ********************
 
