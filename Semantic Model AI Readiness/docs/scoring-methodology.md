@@ -295,3 +295,73 @@ but the denominator is broadened:
 Score = `(measures_with_fmt + columns_with_fmt) / (visible_measures + visible_numeric_columns) * 2`.
 The rationale splits the numerator per source so it is clear whether
 measures, columns or both are dragging the score.
+
+## Category 6 - Quality & Trust
+
+| Test | Max | Rule |
+|---|---:|---|
+| No columns with solely the same value or empty | 3 | Ratio of **visible** columns whose parent table has `rowCount > 0` **and** whose `cardinality > 1`. |
+| Data types consistent on relationship ends | 2 | Ratio of relationships whose From/To column data types are equal after alias normalisation. |
+| No duplicate measures | 2 | Binary. Any two measures whose DAX expression normalises to the same string scores 0; otherwise full points. |
+| Security roles configured | 2 | Ratio of roles that carry at least one non-empty `FilterExpression`. **0 points** when the model has no roles at all. |
+| Security roles documented | 1 | Ratio of roles with a non-empty (non-placeholder) description. **0 points** when the model has no roles at all. |
+
+### Column data quality
+Values are collected via the Semantic Link Labs TOM wrapper:
+
+- `tom.row_count(object=table)` is called **once per table** (skipping
+  calculation-group tables, which do not hold user data).
+- `tom.cardinality(column=column)` is called **once per column**. When the
+  parent table is already known to be empty (`row_count == 0`) the cardinality
+  call is skipped as an optimisation - the column fails on the row-count rule
+  regardless.
+
+System columns (any name starting with `RowNumber`) are excluded, and hidden
+columns are excluded from the denominator - only visible, AI-facing columns
+contribute to the score. A visible column fails when either:
+
+- its parent table has `rowCount == 0`, or
+- the column `cardinality <= 1` (all values identical, including all-null).
+
+Score = `passing_columns / total_visible_columns * 3`. When no visible columns
+exist, the full 3 points are awarded by convention.
+
+### Datatype consistency on relationships
+The check compares the `DataType` of the From column and the To column of
+every relationship. Data-type labels are normalised so common aliases compare
+equal:
+
+- `Int64`, `Integer`, `Int`, `Whole Number` -> `int64`
+- `Double`, `Decimal`, `Decimal Number`, `Fixed Decimal Number` -> `decimal`
+- `Date`, `Time`, `DateTime` -> `datetime`
+- All other labels are compared verbatim (lowercased, whitespace stripped).
+
+Score = `matching_relationships / total_relationships * 2`. When the model
+has no relationships, the full 2 points are awarded by convention.
+
+### Duplicate measures
+Every measure's DAX expression is normalised (whitespace collapsed,
+lowercased) and inserted into a lookup keyed by the normalised expression.
+The first occurrence wins; any subsequent measure whose normalised
+expression matches an earlier one is flagged as a duplicate. Measures with
+an empty expression are ignored.
+
+The check is binary as required by the specification: **any** duplicate
+scores 0, otherwise the full 2 points are awarded. The rationale lists up to
+five duplicate pairs so the modeller can act on them.
+
+### Security roles configured / documented
+Role metadata is harvested via TOM. For every `tom.model.Roles` entry the
+notebook captures:
+
+- `name` and `description`,
+- `hasExpression` - `True` when **any** `TablePermission` on the role has a
+  non-empty `FilterExpression`.
+
+Both tests treat "no roles at all" as an explicit failure (0 points) rather
+than an empty-universe pass, because a model without any security roles has
+neither configured nor documented roles.
+
+- **Configured (2 pts):** score = `roles_with_expression / total_roles * 2`.
+- **Documented (1 pt):** score = `roles_with_description / total_roles * 1`,
+  reusing the same placeholder-tolerant description check as Category 1.

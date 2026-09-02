@@ -1189,3 +1189,277 @@ def score_auto_summarization(columns: list, maxPoints: int) -> dict:
         "rationale": rationale,
     }
 
+
+
+# ---------------------------------------------------------------------------
+# Category 6 - Quality & Trust
+# ---------------------------------------------------------------------------
+
+
+def _normalize_dtype(value: Any) -> str:
+    """Normalize a DAX data-type label so semantically-equal types compare equal."""
+    s = str(value or "").strip().lower().replace(" ", "").replace("_", "")
+    aliases = {
+        "int": "int64",
+        "integer": "int64",
+        "wholenumber": "int64",
+        "double": "decimal",
+        "decimalnumber": "decimal",
+        "fixeddecimalnumber": "decimal",
+        "date": "datetime",
+        "time": "datetime",
+    }
+    return aliases.get(s, s)
+
+
+def _normalize_dax_expression(expr: Any) -> str:
+    """Collapse whitespace and lowercase a DAX expression for duplicate detection."""
+    if not isinstance(expr, str):
+        return ""
+    return re.sub(r"\s+", " ", expr).strip().lower()
+
+
+@udf.function()
+def score_column_data_quality(columns: list, maxPoints: int) -> dict:
+    """Score whether visible columns contain meaningful data.
+
+    Each candidate column carries:
+      - ``table``, ``name``
+      - ``hidden``      - bool
+      - ``rowCount``    - int (row count of the parent table)
+      - ``cardinality`` - int (distinct value count)
+
+    A column **fails** when it is not hidden and either:
+      - its parent table has ``rowCount == 0`` (no data), or
+      - the column ``cardinality <= 1`` (all values identical, including all-null).
+
+    System columns (``RowNumber*``) should be excluded upstream by the caller.
+    """
+    cols = [c for c in (columns or []) if not bool(c.get("hidden", False))]
+    total = len(cols)
+    ok = 0
+    issues = []
+    for c in cols:
+        row_count = c.get("rowCount")
+        card = c.get("cardinality")
+        row_count = int(row_count) if isinstance(row_count, (int, float)) else 0
+        card = int(card) if isinstance(card, (int, float)) else 0
+        label = f"{c.get('table','')}[{c.get('name','')}]"
+        if row_count == 0:
+            issues.append(f"{label} (table is empty)")
+        elif card <= 1:
+            issues.append(f"{label} (cardinality={card})")
+        else:
+            ok += 1
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        rationale = (
+            "Column data quality: no visible columns to evaluate; "
+            f"awarded {maxPoints}/{maxPoints} points by convention."
+        )
+        score = int(maxPoints)
+        coverage = 100.0
+    else:
+        rationale = (
+            f"Column data quality: {ok}/{total} visible columns contain meaningful "
+            f"data (cardinality>1 and non-empty table; {coverage}%). "
+            f"Awarded {score}/{maxPoints} points."
+        )
+        if issues:
+            rationale += f" Issues: {'; '.join(issues[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_relationship_datatype_consistency(relationships: list, maxPoints: int) -> dict:
+    """Score whether both ends of every relationship share the same data type.
+
+    Each relationship carries ``fromTable``, ``fromColumn``, ``fromDataType``,
+    ``toTable``, ``toColumn`` and ``toDataType``. Types are normalized so common
+    aliases (e.g. ``Int64`` vs ``Integer`` vs ``Whole Number``) compare equal.
+    """
+    rels = relationships or []
+    total = len(rels)
+    ok = 0
+    mismatched = []
+    for r in rels:
+        f_dt = _normalize_dtype(r.get("fromDataType"))
+        t_dt = _normalize_dtype(r.get("toDataType"))
+        if f_dt and t_dt and f_dt == t_dt:
+            ok += 1
+        else:
+            mismatched.append(
+                f"{r.get('fromTable','')}[{r.get('fromColumn','')}]"
+                f" ({r.get('fromDataType') or 'unknown'}) -> "
+                f"{r.get('toTable','')}[{r.get('toColumn','')}]"
+                f" ({r.get('toDataType') or 'unknown'})"
+            )
+
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+
+    if total == 0:
+        return {
+            "score": int(maxPoints),
+            "coverage_pct": 100.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                "Datatype consistency: no relationships found in the model; "
+                f"awarded {maxPoints}/{maxPoints} points by convention."
+            ),
+        }
+
+    rationale = (
+        f"Datatype consistency: {ok}/{total} relationships have matching data "
+        f"types on both ends ({coverage}%). Awarded {score}/{maxPoints} points."
+    )
+    if mismatched:
+        rationale += f" Mismatches: {'; '.join(mismatched[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_duplicate_measures(measures: list, maxPoints: int) -> dict:
+    """Score presence of duplicate measure definitions.
+
+    Per the specification, "Different measures with same definition will
+    result in score 0" - this is an all-or-nothing check. Any two measures
+    whose DAX expression normalizes to the same string counts as a duplicate.
+    """
+    ms = measures or []
+    total = len(ms)
+    seen: dict = {}
+    duplicates: list = []
+    for m in ms:
+        norm = _normalize_dax_expression(m.get("expression"))
+        if not norm:
+            continue
+        label = f"{m.get('table','')}[{m.get('name','')}]"
+        if norm in seen:
+            duplicates.append((seen[norm], label))
+        else:
+            seen[norm] = label
+
+    if not duplicates:
+        return {
+            "score": int(maxPoints),
+            "coverage_pct": 100.0,
+            "ok": total,
+            "total": total,
+            "duplicates": [],
+            "rationale": (
+                f"Duplicate measures: no measures share the same DAX definition "
+                f"across {total} evaluated measure(s). Awarded {maxPoints}/{maxPoints} points."
+            ),
+        }
+
+    dup_summary = "; ".join(f"{a} == {b}" for a, b in duplicates[:5])
+    return {
+        "score": 0,
+        "coverage_pct": 0.0,
+        "ok": total - len(duplicates),
+        "total": total,
+        "duplicates": [f"{a} == {b}" for a, b in duplicates],
+        "rationale": (
+            f"Duplicate measures: {len(duplicates)} duplicate definition(s) "
+            f"detected out of {total} measure(s). Awarded 0/{maxPoints} points. "
+            f"Examples: {dup_summary}."
+        ),
+    }
+
+
+@udf.function()
+def score_security_roles_configured(roles: list, maxPoints: int) -> dict:
+    """Score whether security roles exist and carry a filter expression.
+
+    Each role carries ``name``, ``description`` and ``hasExpression`` (bool).
+    A role passes when it has at least one table-permission with a non-empty
+    ``FilterExpression``. When the model has no roles at all, the test scores 0.
+    """
+    rs = roles or []
+    total = len(rs)
+    if total == 0:
+        return {
+            "score": 0,
+            "coverage_pct": 0.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                f"Security roles configured: no security roles defined on the model. "
+                f"Awarded 0/{maxPoints} points."
+            ),
+        }
+
+    ok = sum(1 for r in rs if bool(r.get("hasExpression", False)))
+    empty = [r.get("name", "") for r in rs if not bool(r.get("hasExpression", False))]
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+    rationale = (
+        f"Security roles configured: {ok}/{total} roles have at least one non-empty "
+        f"filter expression ({coverage}%). Awarded {score}/{maxPoints} points."
+    )
+    if empty:
+        rationale += f" Empty roles: {', '.join(empty[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
+
+
+@udf.function()
+def score_security_roles_documented(roles: list, maxPoints: int) -> dict:
+    """Score description coverage on security roles.
+
+    When the model has no roles at all, no points are awarded because there
+    is nothing to document.
+    """
+    rs = roles or []
+    total = len(rs)
+    if total == 0:
+        return {
+            "score": 0,
+            "coverage_pct": 0.0,
+            "ok": 0,
+            "total": 0,
+            "rationale": (
+                f"Security roles documented: no security roles defined on the model. "
+                f"Awarded 0/{maxPoints} points."
+            ),
+        }
+
+    ok = sum(1 for r in rs if _is_non_empty(r.get("description")))
+    missing = [r.get("name", "") for r in rs if not _is_non_empty(r.get("description"))]
+    coverage = _pct(ok, total)
+    score = _points_from_pct(coverage, maxPoints)
+    rationale = (
+        f"Security roles documented: {ok}/{total} roles have a non-empty description "
+        f"({coverage}%). Awarded {score}/{maxPoints} points."
+    )
+    if missing:
+        rationale += f" Missing description on: {', '.join(missing[:5])}."
+    return {
+        "score": score,
+        "coverage_pct": coverage,
+        "ok": ok,
+        "total": total,
+        "rationale": rationale,
+    }
