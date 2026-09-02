@@ -314,8 +314,9 @@ measures, columns or both are dragging the score.
 ### Column data quality
 Values are collected via the Semantic Link Labs TOM wrapper:
 
-- `tom.is_direct_lake(table=t)` is called **once per table** to determine
-  whether the table is a Direct Lake table.
+- `tom.is_direct_lake()` is called **once per model** to determine whether
+  the model is a Direct Lake model. When true, every non-calculation-group
+  table is treated as a Direct Lake table.
 - `tom.total_size(object=t)` is called **once per table** and printed as a
   diagnostic (largest tables first) so relative table footprints can be
   compared. It does not affect the score.

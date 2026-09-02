@@ -195,17 +195,17 @@ with connect_semantic_model(
     for t in tom.model.Tables:
         tbl = str(t.Name)
         try:
-            is_auto = bool(tom.is_auto_date_table(table=t))
+            is_auto = bool(tom.is_auto_date_table(table_name=tbl))
         except Exception as ex:
             print(f"  ! is_auto_date_table failed for '{tbl}': {ex}")
             is_auto = False
         try:
-            is_agg = bool(tom.is_agg_table(table=t))
+            is_agg = bool(tom.is_agg_table(table_name=tbl))
         except Exception as ex:
             print(f"  ! is_agg_table failed for '{tbl}': {ex}")
             is_agg = False
         try:
-            is_fp = bool(tom.is_field_parameter(table=t))
+            is_fp = bool(tom.is_field_parameter(table_name=tbl))
         except Exception as ex:
             print(f"  ! is_field_parameter failed for '{tbl}': {ex}")
             is_fp = False

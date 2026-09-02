@@ -139,23 +139,30 @@ with connect_semantic_model(
                 continue
             column_dtype_lookup[(str(t.Name), col_name)] = str(c.DataType)
 
+    # Direct Lake is a model-wide flag in sempy_labs' TOM wrapper. When True,
+    # every non-calculation table in the model is a Direct Lake table.
+    try:
+        model_is_direct_lake = bool(tom.is_direct_lake())
+    except Exception as ex:
+        print(f"  ! is_direct_lake failed: {ex}")
+        model_is_direct_lake = False
+    if model_is_direct_lake:
+        print("Model is Direct Lake - column data-quality check will exclude "
+              "columns whose parent table holds no in-model data (current "
+              "limitation).")
+
     # --- Row count per table + cardinality per column (for data-quality test) ---
-    # Direct Lake tables are detected via `tom.is_direct_lake(table=t)` - for
-    # those tables the data does not physically reside in the semantic model,
-    # so Vertipaq row count and cardinality are not reliable indicators of
-    # data quality. We still gather total_size for a diagnostic comparison,
-    # but the columns are flagged and excluded from the data-quality score.
+    # Direct Lake tables carry no in-model data, so Vertipaq row count and
+    # cardinality are not reliable indicators of data quality. We still
+    # gather total_size for a diagnostic comparison, but the columns are
+    # flagged and excluded from the data-quality score.
     for t in tom.model.Tables:
         tname = str(t.Name)
         # Skip calculation groups: they don't hold user data.
         if getattr(t, "CalculationGroup", None) is not None:
             continue
 
-        try:
-            is_dl = bool(tom.is_direct_lake(table=t))
-        except Exception as ex:
-            print(f"  ! is_direct_lake failed for table '{tname}': {ex}")
-            is_dl = False
+        is_dl = model_is_direct_lake
         if is_dl:
             direct_lake_tables.add(tname)
 
