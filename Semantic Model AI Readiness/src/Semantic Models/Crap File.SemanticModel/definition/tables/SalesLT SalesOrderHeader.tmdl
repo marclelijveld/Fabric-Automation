@@ -1,0 +1,301 @@
+table 'SalesLT SalesOrderHeader'
+	lineageTag: 227754c6-b964-4cba-8d65-3bc885b8d2b0
+
+	measure Orders = DISTINCTCOUNT('SalesLT SalesOrderHeader'[SalesOrderID])
+		formatString: 0
+		lineageTag: d59c729a-1eed-4b3e-a0cc-491ae631fc8a
+
+	measure 'Last year number of orders' = ```
+			CALCULATE(DISTINCTCOUNT('SalesLT SalesOrderHeader'[SalesOrderID]), SAMEPERIODLASTYEAR('SalesLT SalesOrderHeader'[OrderDate].[Date])) 
+			```
+		formatString: 0
+		lineageTag: 6bf539a0-013c-4e18-987a-7e97aa436100
+
+	measure 'Average Spend long time customers' = CALCULATE(AVERAGE([TotalDue]), FILTER('SalesLT SalesOrderHeader', LEFT('SalesLT SalesOrderHeader'[CustomerID], 2) = "29"))
+		formatString: "€"\ #,0.###############;#,0.###############\ -"€";"€"\ #,0.###############
+		lineageTag: eae9b9d1-f2a8-425d-bb25-c994d66b623d
+
+		annotation PBI_FormatHint = {"currencyCulture":"nl-NL"}
+
+	measure 'Year to Date Count of SalesOrderID' =
+			
+			IF(
+				ISFILTERED('SalesLT SalesOrderHeader'[OrderDate]),
+				ERROR("Time intelligence quick measures can only be grouped or filtered by the Power BI-provided date hierarchy or primary date column."),
+				TOTALYTD(
+					COUNTA('SalesLT SalesOrderHeader'[SalesOrderID]),
+					'SalesLT SalesOrderHeader'[OrderDate].[Date]
+				)
+			)
+		lineageTag: a3342d84-d4c6-4f8b-8b11-7ada0f635b90
+
+		extendedProperty MeasureTemplate =
+				{
+				  "version": 0,
+				  "daxTemplateName": "YearToDate"
+				}
+
+	measure 'ABLT customers' = CALCULATE(AVERAGE([TotalDue]), FILTER('SalesLT SalesOrderHeader', LEFT('SalesLT SalesOrderHeader'[CustomerID], 2) = "29"))
+		formatString: "€"\ #,0.###############;#,0.###############\ -"€";"€"\ #,0.###############
+		lineageTag: 5f992cd7-1b71-4b1f-bad9-89d6a1ff0bdc
+
+		annotation PBI_FormatHint = {"currencyCulture":"nl-NL"}
+
+	column SalesOrderID
+		dataType: string
+		lineageTag: df4f52a8-3f05-49d8-af56-0aad9d2de353
+		summarizeBy: none
+		sourceColumn: SalesOrderID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column RevisionNumber
+		dataType: int64
+		formatString: 0
+		lineageTag: cf7282de-5e4a-4ade-9e13-3bad9a07fd9f
+		summarizeBy: sum
+		sourceColumn: RevisionNumber
+
+		annotation SummarizationSetBy = Automatic
+
+	column OrderDate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 75bf1424-3b4d-4400-8e7e-052792678381
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+		variation Variation
+			isDefault
+			relationship: 9c85deaa-9b25-4779-9dc5-de9f76ae6e1d
+			defaultHierarchy: LocalDateTable_9798358c-7a04-475b-be99-59839244c179.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column DueDate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f7333575-2d19-4756-8759-5c7394a8acce
+		summarizeBy: none
+		sourceColumn: DueDate
+
+		variation Variation
+			isDefault
+			relationship: 659805dc-7eb4-4eaf-b283-177ca8d685f5
+			defaultHierarchy: LocalDateTable_1f72160e-4147-4e47-8a96-23a31f53f17e.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column ShipDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 4e020b07-6e99-406f-8e83-0b98641b7b44
+		summarizeBy: none
+		sourceColumn: ShipDate
+
+		variation Variation
+			isDefault
+			relationship: a249496f-5ddd-4ce7-916f-a36cc1e02bcc
+			defaultHierarchy: LocalDateTable_82575adb-42ea-4060-9cab-4809c1fe6ca0.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Status
+		dataType: int64
+		formatString: 0
+		lineageTag: 75f7741e-e0ec-45ec-a402-da956c48163c
+		summarizeBy: sum
+		sourceColumn: Status
+
+		annotation SummarizationSetBy = Automatic
+
+	column OnlineOrderFlag
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 2a09caf8-6488-4b86-817d-27e61d8b8a79
+		summarizeBy: none
+		sourceColumn: OnlineOrderFlag
+
+		annotation SummarizationSetBy = Automatic
+
+	column SalesOrderNumber
+		dataType: string
+		lineageTag: 7fd011db-8c52-4819-bbff-34404f41dfbe
+		summarizeBy: none
+		sourceColumn: SalesOrderNumber
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column PurchaseOrderNumber
+		dataType: string
+		lineageTag: 0c402d7c-c396-4cdd-ab63-41c0fe55e4c0
+		summarizeBy: none
+		sourceColumn: PurchaseOrderNumber
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column AccountNumber
+		dataType: string
+		lineageTag: 3fb1e769-55bd-4ef2-b32b-8f8932fc317e
+		summarizeBy: none
+		sourceColumn: AccountNumber
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column CustomerID
+		dataType: string
+		lineageTag: d049c907-68b0-41b9-b17a-6e415baae421
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ShipToAddressID
+		dataType: int64
+		formatString: 0
+		lineageTag: 0fdd4360-595e-4fa4-a3dd-599de0640f09
+		summarizeBy: count
+		sourceColumn: ShipToAddressID
+
+		annotation SummarizationSetBy = Automatic
+
+	column BillToAddressID
+		dataType: int64
+		formatString: 0
+		lineageTag: b89a1387-ec6a-4cdd-acb3-c2f1ab180683
+		summarizeBy: none
+		sourceColumn: BillToAddressID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ShipMethod
+		dataType: string
+		lineageTag: 2357600c-91f5-44a1-8e47-9268cc24134f
+		summarizeBy: none
+		sourceColumn: ShipMethod
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column CreditCardApprovalCode
+		dataType: string
+		lineageTag: 7a30395c-9db8-4af8-a164-23991f3f41e1
+		summarizeBy: none
+		sourceColumn: CreditCardApprovalCode
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column SubTotal
+		dataType: decimal
+		formatString: "€"\ #,0.###############;#,0.###############\ -"€";"€"\ #,0.###############
+		lineageTag: e4bdc017-88a4-41d1-abfb-eeae6fa04fe9
+		summarizeBy: sum
+		sourceColumn: SubTotal
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"currencyCulture":"nl-NL"}
+
+	column TaxAmt
+		dataType: decimal
+		formatString: "€"\ #,0.###############;#,0.###############\ -"€";"€"\ #,0.###############
+		lineageTag: bedf45fd-7229-4591-aa22-1f6050e5d364
+		summarizeBy: sum
+		sourceColumn: TaxAmt
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"currencyCulture":"nl-NL"}
+
+	column Freight
+		dataType: decimal
+		formatString: "€"\ #,0.###############;#,0.###############\ -"€";"€"\ #,0.###############
+		lineageTag: 768f0133-48b9-4340-b6b7-8dfea64ada6c
+		summarizeBy: sum
+		sourceColumn: Freight
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"currencyCulture":"nl-NL"}
+
+	column TotalDue
+		dataType: decimal
+		formatString: "€"\ #,0.###############;#,0.###############\ -"€";"€"\ #,0.###############
+		lineageTag: f6a36d05-6098-4ff2-b498-9b672c29713b
+		summarizeBy: sum
+		sourceColumn: TotalDue
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"currencyCulture":"nl-NL"}
+
+	column Comment
+		dataType: string
+		lineageTag: 62ccb80e-4b4d-4b3a-8a8d-c9eefff2e18c
+		summarizeBy: none
+		sourceColumn: Comment
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: 798363d4-b285-463e-9578-342cdbd47835
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 9965bc08-1311-4d33-86c5-8a01f7adfe8c
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		variation Variation
+			isDefault
+			relationship: b2ade0f6-7483-4805-a120-75d7fe63a788
+			defaultHierarchy: LocalDateTable_86d3b6f1-0dc6-4668-8904-bbac6985d1b6.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'SalesLT SalesOrderHeader-3475c41d-9d6a-436f-9ac8-5b580939d4a6' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_SalesOrderHeader = PowerBICheatSheet{[Schema="SalesLT",Item="SalesOrderHeader"]}[Data],
+				    #"Changed Type" = Table.TransformColumnTypes(SalesLT_SalesOrderHeader,{{"SalesOrderID", type text}, {"CustomerID", type text}, {"OrderDate", type date}}),
+				    #"Filtered Rows1" = Table.SelectRows(#"Changed Type", each true),
+				    #"Replaced Value" = Table.ReplaceValue(#"Filtered Rows1",0,9,Replacer.ReplaceValue,{"Status"}),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Replaced Value",{{"DueDate", type date}}),
+				    #"Filtered Rows" = Table.SelectRows(#"Changed Type1", each true)
+				in
+				    #"Filtered Rows"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,66 @@
+table 'SalesLT ProductCategory'
+	lineageTag: 69a663f6-8855-4b60-88c3-3869aa136c64
+
+	column ProductCategoryID
+		dataType: int64
+		formatString: 0
+		lineageTag: 6fa95c9a-cc0a-4b6f-b6bc-08f1cddafa56
+		summarizeBy: none
+		sourceColumn: ProductCategoryID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ParentProductCategoryID
+		dataType: int64
+		formatString: 0
+		lineageTag: f194e961-794f-4af2-add5-6d45c305d016
+		summarizeBy: count
+		sourceColumn: ParentProductCategoryID
+
+		annotation SummarizationSetBy = Automatic
+
+	column Name
+		dataType: string
+		lineageTag: 3c3e4b75-0aed-4fa7-947e-062e3b5110aa
+		summarizeBy: none
+		sourceColumn: Name
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: 99d572a8-50e9-42a5-9861-f5552007f41c
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: string
+		lineageTag: c945b39f-c39a-4530-b30d-f57ea53fea6f
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	partition 'SalesLT ProductCategory-6d68b945-2711-4fe4-999c-0b0327fd4cbe' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_ProductCategory = PowerBICheatSheet{[Schema="SalesLT",Item="ProductCategory"]}[Data],
+				    #"Changed Type" = Table.TransformColumnTypes(SalesLT_ProductCategory,{{"ModifiedDate", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Crap File"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "e4d0b0d3-70c3-95bc-48cb-69e54657dd92"
+  }
+}

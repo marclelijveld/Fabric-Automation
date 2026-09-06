@@ -1,0 +1,184 @@
+table 'SalesLT Customer'
+	lineageTag: ddd3abe7-c5e0-407f-8d31-4db61e85748b
+
+	measure '# Customers' = DISTINCTCOUNT('SalesLT Customer'[CustomerID])
+		formatString: 0
+		lineageTag: 319d1f9c-ab13-4d99-bc9e-92b588b298a8
+
+	column CustomerID
+		dataType: int64
+		formatString: 0
+		lineageTag: 7db70201-81d0-4ae7-b980-d12edf7af4df
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column NameStyle
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: b4f909c2-dcf1-42a8-94d4-2cf3c0380fed
+		summarizeBy: none
+		sourceColumn: NameStyle
+
+		annotation SummarizationSetBy = Automatic
+
+	column Title
+		dataType: string
+		lineageTag: d026e70a-0c36-427c-ad4e-ec7ac7df3488
+		summarizeBy: none
+		sourceColumn: Title
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column FirstName
+		dataType: string
+		lineageTag: 8e4340c0-124e-48d3-88b6-ecd50c40f154
+		summarizeBy: none
+		sourceColumn: FirstName
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column MiddleName
+		dataType: string
+		lineageTag: 4e6debd0-d48a-4271-a754-b5e9181aca5e
+		summarizeBy: none
+		sourceColumn: MiddleName
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column LastName
+		dataType: string
+		lineageTag: 98a142c9-7fd1-4194-814a-8ef4729fc988
+		summarizeBy: none
+		sourceColumn: LastName
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Suffix
+		dataType: string
+		lineageTag: 7041b8e8-9d82-4277-a126-c59a7c704016
+		summarizeBy: none
+		sourceColumn: Suffix
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column CompanyName
+		dataType: string
+		lineageTag: a05a3e73-c770-4734-9ffa-67bc9eabeca7
+		summarizeBy: none
+		sourceColumn: CompanyName
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column SalesPerson
+		dataType: string
+		lineageTag: 4fc1884a-692e-41c4-be7b-d7a70b20c721
+		summarizeBy: none
+		sourceColumn: SalesPerson
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column EmailAddress
+		dataType: string
+		lineageTag: fc3112e3-3fd6-42c8-bc13-d6bbcf138196
+		summarizeBy: none
+		sourceColumn: EmailAddress
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Phone
+		dataType: string
+		lineageTag: 7cebd5b7-5d7a-446f-aa7c-1cd0fd7907ae
+		summarizeBy: none
+		sourceColumn: Phone
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column PasswordHash
+		dataType: string
+		lineageTag: e2832df8-5fcf-49c7-8a65-965f85ef5498
+		summarizeBy: none
+		sourceColumn: PasswordHash
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column PasswordSalt
+		dataType: string
+		lineageTag: c0a4ab89-d5be-4d77-85cc-34efe27e39c5
+		summarizeBy: none
+		sourceColumn: PasswordSalt
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: 53cc1d14-5f54-4d2b-9eff-07b27c1c367b
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 6560f531-8fcb-40c7-b76f-f351ae276712
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		variation Variation
+			isDefault
+			relationship: a555d4dc-839a-4add-95cd-a643794fe2e0
+			defaultHierarchy: LocalDateTable_de523ec0-f060-4d89-b35f-402aa5a83445.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Id
+		dataType: double
+		lineageTag: eb210f83-a8a8-4d32-adc6-1ee3073d9746
+		summarizeBy: none
+		sourceColumn: Id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'SalesLT Customer-be9a7d8d-7538-4142-80bb-60cb7dbbc84e' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_Customer = PowerBICheatSheet{[Schema="SalesLT",Item="Customer"]}[Data],
+				    #"Added Index" = Table.AddIndexColumn(SalesLT_Customer, "Id", 0, 1)
+				in
+				    #"Added Index"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

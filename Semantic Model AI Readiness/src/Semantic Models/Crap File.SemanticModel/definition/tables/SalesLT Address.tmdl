@@ -1,0 +1,110 @@
+table 'SalesLT Address'
+	lineageTag: 2954d956-6fea-48ac-ad0b-a606205dce3f
+
+	column AddressID
+		dataType: int64
+		formatString: 0
+		lineageTag: 1699cfb2-2fef-4671-a362-cd65335e88b9
+		summarizeBy: none
+		sourceColumn: AddressID
+
+		annotation SummarizationSetBy = Automatic
+
+	column AddressLine1
+		dataType: string
+		lineageTag: b4aad76e-7a46-41c7-a81b-19912543308f
+		summarizeBy: none
+		sourceColumn: AddressLine1
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column AddressLine2
+		dataType: string
+		lineageTag: 4719ba78-d54e-4086-9c0b-ea45f0d4acdf
+		summarizeBy: none
+		sourceColumn: AddressLine2
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column City
+		dataType: string
+		lineageTag: 6818ab9f-94dd-42eb-80f9-f2452f911749
+		summarizeBy: none
+		sourceColumn: City
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column StateProvince
+		dataType: string
+		lineageTag: 07a2be39-0abf-4a95-bd79-ec7693ed41c2
+		summarizeBy: none
+		sourceColumn: StateProvince
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column CountryRegion
+		dataType: string
+		lineageTag: 35f7a7ae-487d-47a6-8831-6fadd3dbb6e5
+		summarizeBy: none
+		sourceColumn: CountryRegion
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column PostalCode
+		dataType: string
+		lineageTag: 4d208c55-6484-4055-8eae-519a8b995974
+		summarizeBy: none
+		sourceColumn: PostalCode
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: 421f5ae4-2b50-40ad-93ac-7ab1beb12200
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 0a30dc1a-9f7d-4e59-acdc-7f68222689c0
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		variation Variation
+			isDefault
+			relationship: 43870fe1-71bf-4831-8eec-2aa091bb6379
+			defaultHierarchy: LocalDateTable_d20fc8d6-1fe9-454d-a468-2b23b469d61d.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'SalesLT Address-c88ef680-c616-415c-9c90-7ff8c63a289b' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_Address = PowerBICheatSheet{[Schema="SalesLT",Item="Address"]}[Data]
+				in
+				    SalesLT_Address
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

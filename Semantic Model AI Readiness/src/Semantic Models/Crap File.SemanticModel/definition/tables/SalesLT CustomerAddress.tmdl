@@ -1,0 +1,69 @@
+table 'SalesLT CustomerAddress'
+	lineageTag: 6ee27168-4420-4f05-a6bc-1959246caed3
+
+	column CustomerID
+		dataType: int64
+		formatString: 0
+		lineageTag: a084f773-1baf-4c41-9097-283963c11b35
+		summarizeBy: count
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column AddressID
+		dataType: int64
+		formatString: 0
+		lineageTag: 9d03b289-9534-48d6-ad5f-e8bd26b9d34c
+		summarizeBy: none
+		sourceColumn: AddressID
+
+		annotation SummarizationSetBy = Automatic
+
+	column AddressType
+		dataType: string
+		lineageTag: 7c425aca-650a-42fe-9df2-7c6488e87193
+		summarizeBy: none
+		sourceColumn: AddressType
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: e66d85d3-cf80-42cd-bd9a-6e9361c05eaf
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 1eae4b90-dbdb-4cc8-be9e-8d5055f3b932
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		variation Variation
+			isDefault
+			relationship: f2b83e58-8721-426d-a33d-2c0f987f7c49
+			defaultHierarchy: LocalDateTable_6cf99370-3ff9-49b5-86da-50847b096818.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'SalesLT CustomerAddress-44da60c3-3a55-4a12-b1c9-5b8d8ab8e46a' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_CustomerAddress = PowerBICheatSheet{[Schema="SalesLT",Item="CustomerAddress"]}[Data]
+				in
+				    SalesLT_CustomerAddress
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

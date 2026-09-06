@@ -14,7 +14,23 @@
             "semantic_model_id": {
               "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
               "type": "string"
+            },
+            "semantic_model_name": {
+              "value": "",
+              "type": "string"
+            },
+            "udf_workspace_id": {
+              "value": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+              "type": "string"
+            },
+            "udf_item_name": {
+              "value": "UDF_READ_SemanticModels",
+              "type": "string"
             }
+          },
+          "sessionTag": {
+            "value": "@concat(variables('semantic_model_id'), '_', formatDateTime(utcNow(), 'yyyyMMdd'))",
+            "type": "Expression"
           }
         },
         "policy": {
@@ -24,9 +40,304 @@
           "secureInput": false,
           "secureOutput": false
         },
-        "name": "NB_ANLYZ_01_Discoverability and metadata",
+        "name": "01_Discoverability and metadata",
+        "dependsOn": [
+          {
+            "activity": "Set semantic_model_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "1fb31604-2bc6-8549-4d54-6511ffb9e88b",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "workspace_id": {
+              "value": "733afa10-8965-4440-979b-a36a78750301",
+              "type": "string"
+            },
+            "semantic_model_id": {
+              "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
+              "type": "string"
+            },
+            "semantic_model_name": {
+              "value": "",
+              "type": "string"
+            },
+            "udf_workspace_id": {
+              "value": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+              "type": "string"
+            },
+            "udf_item_name": {
+              "value": "UDF_READ_SemanticModels",
+              "type": "string"
+            }
+          },
+          "sessionTag": {
+            "value": "@concat(variables('semantic_model_id'), '_', formatDateTime(utcNow(), 'yyyyMMdd'))",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "02_Model Structure and Organization",
+        "dependsOn": [
+          {
+            "activity": "Set semantic_model_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "736f34d2-9836-ac1c-4b4d-a1779dd12775",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "workspace_id": {
+              "value": "733afa10-8965-4440-979b-a36a78750301",
+              "type": "string"
+            },
+            "semantic_model_id": {
+              "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
+              "type": "string"
+            },
+            "semantic_model_name": {
+              "value": "",
+              "type": "string"
+            },
+            "udf_workspace_id": {
+              "value": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+              "type": "string"
+            },
+            "udf_item_name": {
+              "value": "UDF_READ_SemanticModels",
+              "type": "string"
+            }
+          },
+          "sessionTag": {
+            "value": "@concat(variables('semantic_model_id'), '_', formatDateTime(utcNow(), 'yyyyMMdd'))",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "03_Measures and Calculations",
+        "dependsOn": [
+          {
+            "activity": "Set semantic_model_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "211e3ad7-8e3c-be21-46f7-cb1d7107a6ff",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "workspace_id": {
+              "value": "733afa10-8965-4440-979b-a36a78750301",
+              "type": "string"
+            },
+            "semantic_model_id": {
+              "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
+              "type": "string"
+            },
+            "semantic_model_name": {
+              "value": "",
+              "type": "string"
+            },
+            "udf_workspace_id": {
+              "value": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+              "type": "string"
+            },
+            "udf_item_name": {
+              "value": "UDF_READ_SemanticModels",
+              "type": "string"
+            }
+          },
+          "sessionTag": {
+            "value": "@concat(variables('semantic_model_id'), '_', formatDateTime(utcNow(), 'yyyyMMdd'))",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "04_Relationships and Model Logic",
+        "dependsOn": [
+          {
+            "activity": "Set semantic_model_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "db07feca-e9f3-a44a-446c-e7b0745a3e22",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "workspace_id": {
+              "value": "733afa10-8965-4440-979b-a36a78750301",
+              "type": "string"
+            },
+            "semantic_model_id": {
+              "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
+              "type": "string"
+            },
+            "semantic_model_name": {
+              "value": "",
+              "type": "string"
+            },
+            "udf_workspace_id": {
+              "value": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+              "type": "string"
+            },
+            "udf_item_name": {
+              "value": "UDF_READ_SemanticModels",
+              "type": "string"
+            }
+          },
+          "sessionTag": {
+            "value": "@concat(variables('semantic_model_id'), '_', formatDateTime(utcNow(), 'yyyyMMdd'))",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "05_Business Semantics and Context",
+        "dependsOn": [
+          {
+            "activity": "Set semantic_model_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "b6b2a5c5-f146-9e4b-4485-c5dbdf51acfa",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "workspace_id": {
+              "value": "733afa10-8965-4440-979b-a36a78750301",
+              "type": "string"
+            },
+            "semantic_model_id": {
+              "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e",
+              "type": "string"
+            },
+            "semantic_model_name": {
+              "value": "",
+              "type": "string"
+            },
+            "udf_workspace_id": {
+              "value": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+              "type": "string"
+            },
+            "udf_item_name": {
+              "value": "UDF_READ_SemanticModels",
+              "type": "string"
+            }
+          },
+          "sessionTag": {
+            "value": "@concat(variables('semantic_model_id'), '_', formatDateTime(utcNow(), 'yyyyMMdd'))",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "06_Quality and Trust",
+        "dependsOn": [
+          {
+            "activity": "Set semantic_model_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "workspace_id",
+          "value": "733afa10-8965-4440-979b-a36a78750301"
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set workspace_id",
         "dependsOn": []
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "semantic_model_id",
+          "value": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e"
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set semantic_model_id",
+        "dependsOn": [
+          {
+            "activity": "Set workspace_id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
-    ]
+    ],
+    "variables": {
+      "workspace_id": {
+        "type": "String",
+        "defaultValue": "f0875e75-caba-40c9-9a6e-9aa035d7bb8e"
+      },
+      "semantic_model_id": {
+        "type": "String",
+        "defaultValue": "733afa10-8965-4440-979b-a36a78750301"
+      }
+    }
   }
 }

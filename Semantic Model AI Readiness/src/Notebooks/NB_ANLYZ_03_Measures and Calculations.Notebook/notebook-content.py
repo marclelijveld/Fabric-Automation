@@ -53,8 +53,8 @@ import notebookutils
 # PARAMETERS CELL ********************
 
 # Parameters - override these when running the notebook via the pipeline / scheduler.
-workspace_id: str = "733afa10-8965-4440-979b-a36a78750301"            # Workspace containing the semantic model to analyze
-semantic_model_id: str = "f0875e75-caba-40c9-9a6e-9aa035d7bb8e"       # Semantic model id (guid)
+workspace_id: str = "7045f1fc-f3b0-4e89-a021-c49dd9e64a86" # "733afa10-8965-4440-979b-a36a78750301"            # Workspace containing the semantic model to analyze
+semantic_model_id: str = "ecd0a5dd-cf6d-4840-bafb-c7ba2674a1d8"  # "f0875e75-caba-40c9-9a6e-9aa035d7bb8e"       # Semantic model id (guid) 
 semantic_model_name: str = ""     # Optional: friendly name; used if id is not provided
 
 # UDF connection info

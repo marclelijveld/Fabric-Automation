@@ -1,0 +1,71 @@
+table 'SalesLT ProductDescription'
+	lineageTag: 15535219-ae66-4c28-864f-d06c924e4deb
+
+	column ProductDescriptionID
+		dataType: int64
+		formatString: 0
+		lineageTag: d67f9100-b1c3-4c2c-9977-2c6ad152c156
+		summarizeBy: none
+		sourceColumn: ProductDescriptionID
+
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: 6d4b9187-0605-42b0-ae30-837acb9ee268
+		summarizeBy: none
+		sourceColumn: Description
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: a52413ec-3ce6-41d0-858f-d1b0881cfd5f
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: ea60f54a-9655-479f-969b-724a081e049c
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		variation Variation
+			isDefault
+			relationship: 8bf30823-f9eb-492c-9568-340814520714
+			defaultHierarchy: LocalDateTable_cd89676d-739b-43df-83b8-7b59e512244e.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Id
+		dataType: double
+		lineageTag: f2fc5395-0c54-43f1-9309-97d9899634ef
+		summarizeBy: none
+		sourceColumn: Id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'SalesLT ProductDescription-9c1977b2-bbdd-400e-8994-24bc9bba8fcd' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_ProductDescription = PowerBICheatSheet{[Schema="SalesLT",Item="ProductDescription"]}[Data],
+				    #"Added Index" = Table.AddIndexColumn(SalesLT_ProductDescription, "Id", 0, 1)
+				in
+				    #"Added Index"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

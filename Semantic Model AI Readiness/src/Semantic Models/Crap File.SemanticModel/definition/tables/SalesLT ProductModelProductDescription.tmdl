@@ -1,0 +1,69 @@
+table 'SalesLT ProductModelProductDescription'
+	lineageTag: 79b9638a-0f20-4034-8b00-f14ef799f83b
+
+	column ProductModelID
+		dataType: int64
+		formatString: 0
+		lineageTag: 21f1c115-9725-4ee2-a87f-39af8c98a5dc
+		summarizeBy: none
+		sourceColumn: ProductModelID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProductDescriptionID
+		dataType: int64
+		formatString: 0
+		lineageTag: 9761e3d5-e12e-459f-a507-31f17172b530
+		summarizeBy: none
+		sourceColumn: ProductDescriptionID
+
+		annotation SummarizationSetBy = Automatic
+
+	column Culture
+		dataType: string
+		lineageTag: 6f02b1c7-b32f-43db-ad68-8d1ff23da9be
+		summarizeBy: none
+		sourceColumn: Culture
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column rowguid
+		dataType: string
+		lineageTag: 05b32dcf-9751-4d12-bcfc-e6e973b89c90
+		summarizeBy: none
+		sourceColumn: rowguid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column ModifiedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 8e3cc82f-f907-4e42-960f-c37e46506177
+		summarizeBy: none
+		sourceColumn: ModifiedDate
+
+		variation Variation
+			isDefault
+			relationship: 1fb8f77f-9744-46b7-a90a-68e104b73cda
+			defaultHierarchy: LocalDateTable_5f6068d5-8854-4772-b45f-7eeadee302ec.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'SalesLT ProductModelProductDescription-cfcf88c5-8db5-4a11-9811-e9e661be8c9e' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Databases("sqlserveraw.database.windows.net"),
+				    PowerBICheatSheet = Source{[Name="PowerBICheatSheet"]}[Data],
+				    SalesLT_ProductModelProductDescription = PowerBICheatSheet{[Schema="SalesLT",Item="ProductModelProductDescription"]}[Data]
+				in
+				    SalesLT_ProductModelProductDescription
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
