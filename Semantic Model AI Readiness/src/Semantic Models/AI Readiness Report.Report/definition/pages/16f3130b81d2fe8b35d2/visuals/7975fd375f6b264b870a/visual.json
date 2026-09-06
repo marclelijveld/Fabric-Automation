@@ -1,0 +1,73 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.6.0/schema.json",
+  "name": "7975fd375f6b264b870a",
+  "position": {
+    "x": 697.04061895551251,
+    "y": 331.7601547388781,
+    "z": 3,
+    "height": 358.9941972920696,
+    "width": 582.95938104448749
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Scores"
+                    }
+                  },
+                  "Property": "Rationale for item"
+                }
+              },
+              "queryRef": "Scores.Rationale for item",
+              "nativeQueryRef": "Rationale for item"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "columnWidth": [
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "558.8568562768542D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Scores.Rationale for item"
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "0e4ed99a130a81ba71de",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Scores"
+              }
+            },
+            "Property": "Rationale for item"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

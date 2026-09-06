@@ -1,0 +1,42 @@
+table 'Scoring ranges'
+	lineageTag: c4f698ce-a2ba-48bb-a109-691f6cc33fa9
+
+	column Score
+		dataType: int64
+		formatString: 0
+		lineageTag: c07d365c-4f50-47ef-bddc-a26a8ae0c58b
+		summarizeBy: none
+		sourceColumn: Score
+
+		annotation SummarizationSetBy = Automatic
+
+	column Category
+		dataType: string
+		lineageTag: 1d0b265f-bb6d-44bd-951b-de0716ae75c0
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: 07879174-74d2-45ee-89aa-568017bc4778
+		summarizeBy: none
+		sourceColumn: Description
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Scoring ranges' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("xlhywod5jbtejmmafiaqc4qg5e-7tyuk4fq6oeu5ibbyso5tzskqy.datawarehouse.fabric.microsoft.com", "LH_STORE_AIReadinessScores"),
+				    AiReadiness_assessmentcriteria = Source{[Schema="AiReadiness",Item="scoringranges"]}[Data],
+				    #"Sorted Rows" = Table.Sort(AiReadiness_assessmentcriteria,{{"Score", Order.Ascending}})
+				in
+				    #"Sorted Rows"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

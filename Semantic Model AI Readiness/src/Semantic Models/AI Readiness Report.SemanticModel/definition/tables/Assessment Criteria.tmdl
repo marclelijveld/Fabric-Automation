@@ -1,0 +1,49 @@
+table 'Assessment Criteria'
+	lineageTag: def23b5c-db2a-41ba-9c4d-2dc230689aae
+
+	column Category
+		dataType: string
+		lineageTag: 3580285e-60ff-43a9-833a-da8260fe5b53
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element
+		dataType: string
+		lineageTag: 777f87ca-46f0-4989-9be6-0fcfdc1d3a76
+		summarizeBy: none
+		sourceColumn: Element
+
+		annotation SummarizationSetBy = Automatic
+
+	column MaxScore
+		dataType: int64
+		formatString: 0
+		lineageTag: f1d1a4a8-4af3-4027-b9cd-b5a9aeab1aba
+		summarizeBy: none
+		sourceColumn: MaxScore
+
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: eac65f24-2684-449f-b40b-916989bfd10e
+		summarizeBy: none
+		sourceColumn: Description
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Assessment Criteria' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("xlhywod5jbtejmmafiaqc4qg5e-7tyuk4fq6oeu5ibbyso5tzskqy.datawarehouse.fabric.microsoft.com", "LH_STORE_AIReadinessScores"),
+				    AiReadiness_assessmentcriteria = Source{[Schema="AiReadiness",Item="assessmentcriteria"]}[Data]
+				in
+				    AiReadiness_assessmentcriteria
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

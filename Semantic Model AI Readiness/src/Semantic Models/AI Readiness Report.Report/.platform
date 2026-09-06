@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "AI Readiness Report"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "6535a44a-16da-9973-43f6-36badad6194c"
+  }
+}

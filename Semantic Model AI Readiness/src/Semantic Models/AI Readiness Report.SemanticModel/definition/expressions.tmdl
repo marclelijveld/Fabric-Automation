@@ -1,0 +1,12 @@
+expression Source =
+		let
+		    Source = Sql.Database("xlhywod5jbtejmmafiaqc4qg5e-7tyuk4fq6oeu5ibbyso5tzskqy.datawarehouse.fabric.microsoft.com", "LH_STORE_AIReadinessScores"),
+		    AiReadiness_Scores = Source{[Schema="AiReadiness",Item="Scores"]}[Data]
+		in
+		    AiReadiness_Scores
+	lineageTag: 10f03005-9e54-4773-a79f-a9c270c2538d
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,16 @@
+relationship a73177fe-179c-8eca-fb10-f5a5e0080247
+	fromColumn: Scores.Test
+	toColumn: 'Assessment Criteria'.Element
+
+relationship dc0d3103-ee73-530e-6ee7-0b2f61375e81
+	fromColumn: Scores.SemanticModelId
+	toColumn: 'Semantic Models'.SemanticModelId
+
+relationship cdc3c43a-6e9e-2f0b-208f-72b18a1bcd39
+	fromColumn: 'Assessment Endresults'.'Total score'
+	toColumn: 'Scoring ranges'.Score
+
+relationship 4c3c9056-38fa-a575-a5eb-af89d98c97c2
+	fromColumn: 'Assessment Endresults'.SemanticModelId
+	toColumn: 'Semantic Models'.SemanticModelId
+

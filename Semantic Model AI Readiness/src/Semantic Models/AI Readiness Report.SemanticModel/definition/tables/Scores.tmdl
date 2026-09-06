@@ -1,0 +1,99 @@
+table Scores
+	lineageTag: d3d26977-b1ff-48cc-ad7a-3446e71fdb35
+
+	measure 'Rationale for item' = SELECTEDVALUE(Scores[Rationale], "<<<   Select one test to show score rationale   >>>")
+		lineageTag: 0575fafd-7758-4d07-b308-cfbb904f0467
+
+	column WorkspaceId
+		dataType: string
+		isHidden
+		lineageTag: 09be082b-8099-468b-8f88-78522a133f26
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column SemanticModelId
+		dataType: string
+		isHidden
+		lineageTag: 225f2b7c-07e4-4a69-a86a-3b836102c20a
+		summarizeBy: none
+		sourceColumn: SemanticModelId
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column Time
+		dataType: dateTime
+		formatString: Long Time
+		lineageTag: efb54bcf-55bf-4483-811b-54f3e542fcfe
+		summarizeBy: none
+		sourceColumn: Time
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Time
+
+	column Category
+		dataType: string
+		lineageTag: e9375ecf-9489-47dd-819f-18db0e0ea283
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Test
+		dataType: string
+		lineageTag: 37c45460-aac1-470f-993a-78fb4b265de2
+		summarizeBy: none
+		sourceColumn: Test
+
+		annotation SummarizationSetBy = Automatic
+
+	column Score
+		dataType: int64
+		formatString: 0
+		lineageTag: 9182129c-5966-40fe-8db9-45acc984982e
+		summarizeBy: sum
+		sourceColumn: Score
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rationale
+		dataType: string
+		lineageTag: cf4b074b-a7bd-4c01-80d2-ce0c88ba6111
+		summarizeBy: none
+		sourceColumn: Rationale
+
+		annotation SummarizationSetBy = Automatic
+
+	column Date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 0c8da990-b340-4feb-86b8-f2f4c3933ac6
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition Scores = m
+		mode: import
+		source =
+				let
+				    Source = #"Source",
+				    #"Inserted Date" = Table.AddColumn(Source, "Date", each Date.From([DateTime]), type date),
+				    #"Reordered Columns" = Table.ReorderColumns(#"Inserted Date",{"WorkspaceId", "SemanticModelId", "Date", "DateTime", "Category", "Test", "Score", "Rationale"}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Reordered Columns",{{"DateTime", type time}}),
+				    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"DateTime", "Time"}})
+				in
+				    #"Renamed Columns"
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

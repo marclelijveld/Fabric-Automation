@@ -1,0 +1,33 @@
+table 'Semantic Models'
+	lineageTag: f9afb17a-f4cc-45f0-9fc1-8740f681251f
+
+	column WorkspaceId
+		dataType: string
+		lineageTag: 5541b904-8aaf-4e8e-8e67-8445484c6087
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+
+		annotation SummarizationSetBy = Automatic
+
+	column SemanticModelId
+		dataType: string
+		lineageTag: 08acc585-d623-40cf-b509-19fc83f8d900
+		summarizeBy: none
+		sourceColumn: SemanticModelId
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Semantic Models' = m
+		mode: import
+		source =
+				let
+				    Source = Source,
+				    #"Removed Other Columns" = Table.SelectColumns(Source,{"WorkspaceId", "SemanticModelId"}),
+				    #"Removed Duplicates" = Table.Distinct(#"Removed Other Columns")
+				in
+				    #"Removed Duplicates"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "AI Readiness Report"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "efa8a39e-f033-b459-4a9e-7f03ac13108c"
+  }
+}

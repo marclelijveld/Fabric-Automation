@@ -1,0 +1,66 @@
+table 'Assessment Endresults'
+	lineageTag: abe5d7c1-51aa-4a85-b553-cfdc56068f3a
+
+	measure 'Total score last assessment' = CALCULATE(SUM('Assessment Endresults'[Total score]), LASTDATE('Assessment Endresults'[Date]))
+		formatString: 0
+		lineageTag: f49a46c5-3125-4518-a3bb-356ed2a4f8a5
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	column WorkspaceId
+		dataType: string
+		isHidden
+		lineageTag: e50079fc-0542-4657-a3ea-7f1b88627c9f
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column SemanticModelId
+		dataType: string
+		isHidden
+		lineageTag: b812f8b2-94a4-486e-babf-06152f9b6f2f
+		summarizeBy: none
+		sourceColumn: SemanticModelId
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column Date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: b2c0cf0a-7941-41c9-be0b-22eea4dc62cd
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Total score'
+		dataType: double
+		formatString: 0
+		lineageTag: 7c136623-9070-4c3e-8210-f2fccf13a6b9
+		summarizeBy: none
+		sourceColumn: Total score
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	partition 'Assessment Endresults' = m
+		mode: import
+		source =
+				let
+				    Source = Scores,
+				    #"Grouped Rows" = Table.Group(Source, {"WorkspaceId", "SemanticModelId", "Date"}, {{"Total score", each List.Sum([Score]), type nullable number}})
+				in
+				    #"Grouped Rows"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

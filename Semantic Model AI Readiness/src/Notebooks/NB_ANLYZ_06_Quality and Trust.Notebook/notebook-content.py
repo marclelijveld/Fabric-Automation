@@ -42,7 +42,6 @@
 # "no columns with solely the same value or empty" test. As a diagnostic
 # aid, `TOMWrapper.total_size()` is also collected per table so relative
 # table sizes can be compared in the notebook log.
-#
 # **Row count / cardinality source.** `tom.row_count()`, `tom.cardinality()`
 # and `tom.total_size()` read pre-populated Vertipaq annotations
 # (`Vertipaq_RowCount`, `Vertipaq_Cardinality`, `Vertipaq_TotalSize`).
