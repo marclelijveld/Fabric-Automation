@@ -42,6 +42,15 @@
 # "no columns with solely the same value or empty" test. As a diagnostic
 # aid, `TOMWrapper.total_size()` is also collected per table so relative
 # table sizes can be compared in the notebook log.
+#
+# **Row count / cardinality source.** `tom.row_count()`, `tom.cardinality()`
+# and `tom.total_size()` read pre-populated Vertipaq annotations
+# (`Vertipaq_RowCount`, `Vertipaq_Cardinality`, `Vertipaq_TotalSize`).
+# Without those annotations they return 0 - which would wrongly report every
+# table as empty on an Import model. The notebook therefore calls
+# `tom.set_vertipaq_annotations()` once at the start of the TOM session to
+# populate them, and falls back to a DAX `COUNTROWS` / `DISTINCTCOUNT`
+# query for any individual table or column whose annotation is still 0.
 
 
 # CELL ********************
@@ -129,6 +138,19 @@ table_total_sizes = {}  # table name -> total_size (bytes)
 with connect_semantic_model(
     dataset=semantic_model_id, workspace=workspace_id, readonly=True
 ) as tom:
+    # `tom.row_count()`, `tom.cardinality()` and `tom.total_size()` read
+    # Vertipaq annotations off the model (Vertipaq_RowCount,
+    # Vertipaq_Cardinality, Vertipaq_TotalSize). Those annotations do not
+    # exist by default - without them every table looks empty. Populate
+    # them once here so the downstream calls return real values.
+    try:
+        tom.set_vertipaq_annotations()
+        vertipaq_populated = True
+    except Exception as ex:
+        print(f"  ! set_vertipaq_annotations failed: {ex}. "
+              "Will fall back to DAX for row count / cardinality.")
+        vertipaq_populated = False
+
     # --- Data types per column (used for relationship consistency test) ---
     for t in tom.model.Tables:
         for c in t.Columns:
@@ -178,6 +200,21 @@ with connect_semantic_model(
             except Exception as ex:
                 print(f"  ! row_count failed for table '{tname}': {ex}")
                 row_count = 0
+            # Fallback: Vertipaq annotation missing -> query DAX directly.
+            if row_count == 0:
+                try:
+                    dax = f"EVALUATE ROW(\"n\", COUNTROWS('{tname}'))"
+                    _df = fabric.evaluate_dax(
+                        dataset=semantic_model_id, workspace=workspace_id,
+                        dax_string=dax,
+                    )
+                    val = _df.iloc[0, 0]
+                    row_count = int(val) if val is not None else 0
+                    if row_count > 0:
+                        print(f"  (row_count via DAX fallback for '{tname}': "
+                              f"{row_count})")
+                except Exception as ex:
+                    print(f"  ! DAX COUNTROWS failed for '{tname}': {ex}")
 
         for c in t.Columns:
             col_name = str(c.Name)
@@ -196,6 +233,22 @@ with connect_semantic_model(
                 except Exception as ex:
                     print(f"  ! cardinality failed for {tname}[{col_name}]: {ex}")
                     card = 0
+                # Fallback: annotation missing -> query DAX DISTINCTCOUNT.
+                if card == 0:
+                    try:
+                        dax = (
+                            f"EVALUATE ROW(\"n\", "
+                            f"DISTINCTCOUNT('{tname}'[{col_name}]))"
+                        )
+                        _df = fabric.evaluate_dax(
+                            dataset=semantic_model_id, workspace=workspace_id,
+                            dax_string=dax,
+                        )
+                        val = _df.iloc[0, 0]
+                        card = int(val) if val is not None else 0
+                    except Exception as ex:
+                        print(f"  ! DAX DISTINCTCOUNT failed for "
+                              f"{tname}[{col_name}]: {ex}")
             column_quality_items.append({
                 "table": tname,
                 "name": col_name,

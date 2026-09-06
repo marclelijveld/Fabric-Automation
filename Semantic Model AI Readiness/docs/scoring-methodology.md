@@ -323,7 +323,20 @@ measures, columns or both are dragging the score.
 | Security roles documented | 1 | Ratio of roles with a non-empty (non-placeholder) description. **0 points** when the model has no roles at all. |
 
 ### Column data quality
-Values are collected via the Semantic Link Labs TOM wrapper:
+Values are collected via the Semantic Link Labs TOM wrapper. Note that
+`tom.row_count()`, `tom.cardinality()` and `tom.total_size()` all read
+pre-populated Vertipaq annotations (`Vertipaq_RowCount`,
+`Vertipaq_Cardinality`, `Vertipaq_TotalSize`) rather than executing a live
+query. Without those annotations they return 0 - which would wrongly report
+every table as empty. The notebook therefore:
+
+1. Calls `tom.set_vertipaq_annotations()` once at the start of the TOM
+   session so every table and column has fresh Vertipaq stats.
+2. Falls back to a live DAX query
+   (`EVALUATE ROW("n", COUNTROWS('T'))` or
+   `EVALUATE ROW("n", DISTINCTCOUNT('T'[C]))`) for any single table or
+   column whose annotation is still 0 after step 1. This handles edge
+   cases such as annotations that fail to write on a locked model.
 
 - `tom.is_direct_lake()` is called **once per model** to determine whether
   the model is a Direct Lake model. When true, every non-calculation-group
