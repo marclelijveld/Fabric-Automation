@@ -1,0 +1,92 @@
+table FullAssessment
+	lineageTag: 13bc335b-b358-4b90-9923-5c44517f1af9
+	sourceLineageTag: [AiReadiness].[FullAssessment]
+
+	measure 'Assessment Score' = IF(HASONEVALUE(FullAssessment[AssessmentId]), SUM(FullAssessment[Score]), "<<< Select one assessment to view scores >>>")
+		lineageTag: a364b039-70be-4d0b-82bf-56f7f41a8412
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column AssessmentId
+		dataType: string
+		lineageTag: 3105e2c4-ba86-4c17-a6d5-9b6a352ba412
+		sourceLineageTag: AssessmentId
+		summarizeBy: none
+		sourceColumn: AssessmentId
+
+		annotation SummarizationSetBy = Automatic
+
+	column WorkspaceId
+		dataType: string
+		lineageTag: 54f8477e-4ccb-4315-88e3-1a83e6b26c86
+		sourceLineageTag: WorkspaceId
+		summarizeBy: none
+		sourceColumn: WorkspaceId
+
+		annotation SummarizationSetBy = Automatic
+
+	column SemanticModelId
+		dataType: string
+		lineageTag: 53fec4f6-1f51-4615-bb80-b4c39ecd6f56
+		sourceLineageTag: SemanticModelId
+		summarizeBy: none
+		sourceColumn: SemanticModelId
+
+		annotation SummarizationSetBy = Automatic
+
+	column DateTime
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: ef02c017-c2aa-44db-931e-ebd3b5126e21
+		sourceLineageTag: DateTime
+		summarizeBy: none
+		sourceColumn: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column Category
+		dataType: string
+		lineageTag: 5e412c9e-f1d6-4b3b-ab78-4772d7420a20
+		sourceLineageTag: Category
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Test
+		dataType: string
+		lineageTag: a55ce111-d99b-42cc-b9ed-418732544f47
+		sourceLineageTag: Test
+		summarizeBy: none
+		sourceColumn: Test
+
+		annotation SummarizationSetBy = Automatic
+
+	column Score
+		dataType: int64
+		formatString: 0
+		lineageTag: f91615ea-a140-4f2a-a667-ac13661ddce2
+		sourceLineageTag: Score
+		summarizeBy: sum
+		sourceColumn: Score
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rationale
+		dataType: string
+		lineageTag: d97118ab-2f8a-4c69-a19f-c71e0dde4822
+		sourceLineageTag: Rationale
+		summarizeBy: none
+		sourceColumn: Rationale
+
+		annotation SummarizationSetBy = Automatic
+
+	partition FullAssessment = entity
+		mode: directLake
+		source
+			entityName: FullAssessment
+			schemaName: AiReadiness
+			expressionSource: 'DirectLake - LH_STORE_AIReadinessScores'
+

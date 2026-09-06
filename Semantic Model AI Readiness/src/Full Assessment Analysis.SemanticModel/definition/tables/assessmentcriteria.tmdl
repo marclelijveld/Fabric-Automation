@@ -1,0 +1,48 @@
+table assessmentcriteria
+	lineageTag: 98b81e94-1afe-4543-83e0-2b4717e9fde2
+	sourceLineageTag: [AiReadiness].[assessmentcriteria]
+
+	column Category
+		dataType: string
+		lineageTag: bc6bac3f-b3ad-4fec-a0aa-e3f42d585017
+		sourceLineageTag: Category
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element
+		dataType: string
+		lineageTag: c2dbf72f-3f1a-4bc9-9568-e03651519f9e
+		sourceLineageTag: Element
+		summarizeBy: none
+		sourceColumn: Element
+
+		annotation SummarizationSetBy = Automatic
+
+	column MaxScore
+		dataType: int64
+		formatString: 0
+		lineageTag: a15485c3-7b97-4e41-95f7-765db1f45cdf
+		sourceLineageTag: MaxScore
+		summarizeBy: sum
+		sourceColumn: MaxScore
+
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: 51d2a0d6-0308-4aea-947b-9f9be5498c6e
+		sourceLineageTag: Description
+		summarizeBy: none
+		sourceColumn: Description
+
+		annotation SummarizationSetBy = Automatic
+
+	partition assessmentcriteria = entity
+		mode: directLake
+		source
+			entityName: assessmentcriteria
+			schemaName: AiReadiness
+			expressionSource: 'DirectLake - LH_STORE_AIReadinessScores'
+

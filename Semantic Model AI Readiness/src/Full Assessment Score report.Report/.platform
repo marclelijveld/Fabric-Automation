@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Full Assessment Score report"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "9538186c-1d42-92b9-48e3-86a9022d60a8"
+  }
+}

@@ -1,0 +1,8 @@
+relationship 96b3b17d-b6f4-58cd-6b27-b5bc6963256c
+	fromColumn: scoringranges.Category
+	toColumn: assessmentcriteria.Category
+
+relationship aa7693cf-d8cc-911c-1a13-7a0135d4a7c4
+	fromColumn: FullAssessment.Test
+	toColumn: assessmentcriteria.Element
+

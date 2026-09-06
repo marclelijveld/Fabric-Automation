@@ -1,0 +1,74 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "e6a5bba196f781d2b66f",
+  "position": {
+    "x": 948.28740385730293,
+    "y": 58.5753488192324,
+    "z": 0,
+    "height": 448.02226259034512,
+    "width": 574.67166544273948,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "gauge",
+    "query": {
+      "queryState": {
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FullAssessment"
+                    }
+                  },
+                  "Property": "Assessment Score"
+                }
+              },
+              "queryRef": "FullAssessment.Assessment Score",
+              "nativeQueryRef": "Assessment Score"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "FullAssessment"
+                  }
+                },
+                "Property": "Assessment Score"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "fcbad7dc19252b11429f",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "FullAssessment"
+              }
+            },
+            "Property": "Assessment Score"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+table scoringranges
+	lineageTag: 4b55231b-d36d-45ab-855e-3cbb089109a9
+	sourceLineageTag: [AiReadiness].[scoringranges]
+
+	column Score
+		dataType: int64
+		formatString: 0
+		lineageTag: a3f2b7bf-9aa6-40ec-9c3b-0d9109b80995
+		sourceLineageTag: Score
+		summarizeBy: sum
+		sourceColumn: Score
+
+		annotation SummarizationSetBy = Automatic
+
+	column Category
+		dataType: string
+		lineageTag: 55e44ddc-c9f3-486c-91d3-acbc09710c23
+		sourceLineageTag: Category
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: d34e993e-ae21-4f98-ab43-908cd63363a9
+		sourceLineageTag: Description
+		summarizeBy: none
+		sourceColumn: Description
+
+		annotation SummarizationSetBy = Automatic
+
+	partition scoringranges = entity
+		mode: directLake
+		source
+			entityName: scoringranges
+			schemaName: AiReadiness
+			expressionSource: 'DirectLake - LH_STORE_AIReadinessScores'
+

@@ -1,0 +1,294 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "bd6fde06716f2161ec03",
+  "position": {
+    "x": 53.825996212267611,
+    "y": 137.73122560197888,
+    "z": 2,
+    "height": 209,
+    "width": 594,
+    "tabOrder": 2
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FullAssessment"
+                    }
+                  },
+                  "Property": "WorkspaceId"
+                }
+              },
+              "queryRef": "FullAssessment.WorkspaceId",
+              "nativeQueryRef": "WorkspaceId",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FullAssessment"
+                    }
+                  },
+                  "Property": "SemanticModelId"
+                }
+              },
+              "queryRef": "FullAssessment.SemanticModelId",
+              "nativeQueryRef": "SemanticModelId",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "expansionStates": [
+      {
+        "roles": [
+          "Values"
+        ],
+        "levels": [
+          {
+            "queryRefs": [
+              "FullAssessment.WorkspaceId"
+            ],
+            "isCollapsed": true,
+            "identityKeys": [
+              {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "FullAssessment"
+                    }
+                  },
+                  "Property": "WorkspaceId"
+                }
+              }
+            ],
+            "isPinned": true
+          },
+          {
+            "queryRefs": [
+              "FullAssessment.SemanticModelId"
+            ],
+            "isCollapsed": true,
+            "isPinned": true
+          }
+        ],
+        "root": {
+          "children": [
+            {
+              "identityValues": [
+                {
+                  "Literal": {
+                    "Value": "'7045f1fc-f3b0-4e89-a021-c49dd9e64a86'"
+                  }
+                }
+              ],
+              "isToggled": true
+            }
+          ]
+        }
+      }
+    ],
+    "objects": {
+      "data": [
+        {
+          "properties": {
+            "mode": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Basic'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "general": [
+        {
+          "properties": {
+            "filter": {
+              "filter": {
+                "Version": 2,
+                "From": [
+                  {
+                    "Name": "f",
+                    "Entity": "FullAssessment",
+                    "Type": 0
+                  }
+                ],
+                "Where": [
+                  {
+                    "Condition": {
+                      "In": {
+                        "Expressions": [
+                          {
+                            "Column": {
+                              "Expression": {
+                                "SourceRef": {
+                                  "Source": "f"
+                                }
+                              },
+                              "Property": "WorkspaceId"
+                            }
+                          },
+                          {
+                            "Column": {
+                              "Expression": {
+                                "SourceRef": {
+                                  "Source": "f"
+                                }
+                              },
+                              "Property": "SemanticModelId"
+                            }
+                          }
+                        ],
+                        "Values": [
+                          [
+                            {
+                              "Literal": {
+                                "Value": "'7045f1fc-f3b0-4e89-a021-c49dd9e64a86'"
+                              }
+                            },
+                            {
+                              "Literal": {
+                                "Value": "'ecd0a5dd-cf6d-4840-bafb-c7ba2674a1d8'"
+                              }
+                            }
+                          ]
+                        ]
+                      }
+                    },
+                    "Annotations": {
+                      "filterExpressionMetadata": {
+                        "expressions": [
+                          {
+                            "Column": {
+                              "Expression": {
+                                "SourceRef": {
+                                  "Entity": "FullAssessment"
+                                }
+                              },
+                              "Property": "WorkspaceId"
+                            }
+                          },
+                          {
+                            "Column": {
+                              "Expression": {
+                                "SourceRef": {
+                                  "Entity": "FullAssessment"
+                                }
+                              },
+                              "Property": "SemanticModelId"
+                            }
+                          }
+                        ],
+                        "decomposedIdentities": {
+                          "values": [
+                            [
+                              {
+                                "0": [
+                                  {
+                                    "Literal": {
+                                      "Value": "'7045f1fc-f3b0-4e89-a021-c49dd9e64a86'"
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "1": [
+                                  {
+                                    "Literal": {
+                                      "Value": "'ecd0a5dd-cf6d-4840-bafb-c7ba2674a1d8'"
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          ],
+                          "columns": [
+                            {
+                              "value": {
+                                "Column": {
+                                  "Expression": {
+                                    "SourceRef": {
+                                      "Entity": "FullAssessment"
+                                    }
+                                  },
+                                  "Property": "WorkspaceId"
+                                }
+                              }
+                            },
+                            {
+                              "value": {
+                                "Column": {
+                                  "Expression": {
+                                    "SourceRef": {
+                                      "Entity": "FullAssessment"
+                                    }
+                                  },
+                                  "Property": "SemanticModelId"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "valueMap": [
+                          {
+                            "0": "7045f1fc-f3b0-4e89-a021-c49dd9e64a86",
+                            "1": "ecd0a5dd-cf6d-4840-bafb-c7ba2674a1d8"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "9bd8f48368f7df7df23c",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "FullAssessment"
+              }
+            },
+            "Property": "WorkspaceId"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "a2334a922f35b4a01efa",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "FullAssessment"
+              }
+            },
+            "Property": "SemanticModelId"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}

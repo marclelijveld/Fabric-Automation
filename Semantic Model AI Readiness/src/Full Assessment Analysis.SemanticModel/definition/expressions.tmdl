@@ -1,0 +1,11 @@
+expression 'DirectLake - LH_STORE_AIReadinessScores' =
+		let
+		    Source = AzureStorage.DataLake("https://onelake.dfs.fabric.microsoft.com/7045f1fc-f3b0-4e89-a021-c49dd9e64a86/01158b6e-6d82-4b49-9b5e-558da8dcfde9", [HierarchicalNavigation=true])
+		in
+		    Source
+	lineageTag: 63a1a190-5941-47fb-8004-e0284cabe6f5
+
+	annotation PBI_IncludeFutureArtifacts = False
+
+	annotation PBI_RemovedChildren = [{"remoteItemId":{"analysisServicesObject":{"sourceName":null,"sourceLineageTag":"[AiReadiness].[Scores]"}},"objectType":"Table"}]
+
