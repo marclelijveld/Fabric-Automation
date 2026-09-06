@@ -214,6 +214,17 @@ Relationship descriptions are read via TOM (`connect_semantic_model`) because
 matched to the Semantic Link rows on the `(FromTable, FromColumn, ToTable, ToColumn)`
 tuple.
 
+### Auto date/time relationships are excluded
+When "Auto date/time" is enabled in Power BI, a hidden date dimension is
+generated per date column (`LocalDateTable_<guid>`) plus one
+`DateTableTemplate_<guid>`. These tables and the relationships attached to
+them are **not** authored by the modeller, and the feature itself is
+considered a bad practice. Any relationship whose From- or To-table name
+contains `LocalDateTable_` or `DateTableTemplate_` is therefore reported
+separately in the notebook log and excluded from all five tests in this
+category (numerator **and** denominator). Only relationships the author
+actually modelled contribute to the Category 4 score.
+
 ### Unambiguous filter paths
 Only the **active** relationships are considered. Two ambiguity signals are checked:
 
